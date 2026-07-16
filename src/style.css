@@ -88,55 +88,6 @@ body {
   border-radius: 4px;
 }
 
-/* --- Shared top bar: always dark, self-contained (never keyed off theme vars) --- */
-.cl-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem clamp(0.8rem, 3vw, 1.5rem);
-  background-color: #0b0e14;
-  border-bottom: 1px solid #2c3444;
-  color: #f0f3f8;
-}
-.cl-topbar-home {
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #f0f3f8;
-  text-decoration: none;
-}
-.cl-topbar-home:hover {
-  text-decoration: underline;
-}
-.cl-topbar-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-.cl-topbar-link {
-  color: #cbd2de;
-  text-decoration: underline;
-  font-size: 0.9rem;
-}
-.cl-topbar-link:hover {
-  color: #ffffff;
-}
-.cl-topbar-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background-color: #1d2431;
-  color: #f0f3f8;
-  border: 1px solid #3a4354;
-  border-radius: 999px;
-  padding: 0.3rem 0.75rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.cl-topbar-toggle:hover {
-  background-color: #262f3e;
-}
-
 /* ---------------------------------- layout ---------------------------------- */
 #app {
   max-width: 68rem;
