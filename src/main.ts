@@ -135,12 +135,65 @@ function transformPanel(): HTMLElement {
       el('code', {}, ['R']),
       ' is fixed before the challenge exists.',
     ]),
+    el('details', { class: 'notation' }, [
+      el('summary', {}, ['New to the notation? Read this first']),
+      el('ul', {}, [
+        el('li', {}, [
+          el('code', {}, ['[k]G']),
+          ' — the generator ',
+          el('code', {}, ['G']),
+          ' added to itself ',
+          el('code', {}, ['k']),
+          ' times (“scalar multiplication”). Easy to compute forwards; recovering ',
+          el('code', {}, ['k']),
+          ' from ',
+          el('code', {}, ['[k]G']),
+          ' is the hard discrete-log problem.',
+        ]),
+        el('li', {}, [
+          el('code', {}, ['pk = [x]G']),
+          ' — the public key is the secret ',
+          el('code', {}, ['x']),
+          ' times ',
+          el('code', {}, ['G']),
+          '. Knowing ',
+          el('code', {}, ['pk']),
+          ' does not reveal ',
+          el('code', {}, ['x']),
+          '.',
+        ]),
+        el('li', {}, [
+          el('code', {}, ['H(…)']),
+          ' — a hash (SHA-512 here), reduced ',
+          el('code', {}, ['mod L']),
+          ', where ',
+          el('code', {}, ['L']),
+          ' is the group’s size; ',
+          el('code', {}, ['mod L']),
+          ' just means “wrap around” at ',
+          el('code', {}, ['L']),
+          '.',
+        ]),
+      ]),
+    ]),
     el('div', { class: 'card' }, [
       el('div', { class: 'btn-row', role: 'group', 'aria-label': 'Protocol mode' }, [
         modeButton('interactive', 'Interactive (live verifier)'),
         modeButton('noninteractive', 'Non-interactive (Fiat-Shamir)'),
       ]),
       body,
+      el('details', {}, [
+        el('summary', {}, ['Wait — isn’t this just a Schnorr signature?']),
+        el('p', {}, [
+          'Almost exactly. A Schnorr signature ',
+          el('em', {}, ['is']),
+          ' this proof with the message folded into the challenge: ',
+          el('code', {}, ['c = H(…, R, m)']),
+          ', and the signature is the pair ',
+          el('code', {}, ['(R, s)']),
+          '. So “which values go in the hash” is not an abstract question — it is the difference between a signature scheme that binds the signer and public key and one an attacker can forge. Real schemes such as EdDSA and BIP-340 also bind the public key into the hash for exactly the reasons this lab demonstrates.',
+        ]),
+      ]),
     ]),
   ])
   renderTransform(body)
@@ -160,26 +213,46 @@ function modeButton(mode: TMode, label: string): HTMLButtonElement {
 }
 
 /**
- * An accessible sequence diagram of the three-move protocol. It is a single graphic
- * (role="img") with a full text alternative; the visual morphs when the mode toggles —
- * the Verifier lane becomes a Hash box and the returned-challenge arrow becomes a value
- * the hash computes in place. Motion is tied to the toggle, never idle.
+ * The interactive sequence diagram — one graphic that IS the stepper. Stepping lights up
+ * the active message and reveals its real value in place; toggling the mode morphs the
+ * Verifier lane into a Hash box and the returned-challenge arrow into a value the hash
+ * computes on its own side. It is a single graphic (role="img") with a text alternative;
+ * live values and the current-step prose are announced through a separate status region.
+ * All motion is tied to the Next button and the mode toggle — never idle.
  */
-function flowDiagram(mode: TMode): HTMLElement {
+function flowDiagram(mode: TMode, step: number): HTMLElement {
   const ni = mode === 'noninteractive'
   const desc = ni
     ? 'Sequence diagram. The prover sends commitment R to the hash side. The challenge c is computed as H of G, pk, R and the message — by the hash, not sent as a message. The prover sends response s. Because R is inside the hash, the challenge still depends on the committed R.'
     : 'Sequence diagram. The prover sends commitment R to the verifier. The verifier sends back a random challenge c, chosen after seeing R. The prover sends response s.'
-  const msgRow = (dir: 'to-right' | 'to-left', label: string, cap: string, hl = false) =>
-    el('div', { class: `flow-msg ${dir}` }, [
+
+  const stateCls = (n: number): string => (step === n ? ' active' : step > n ? ' done' : ' pending')
+  const valChip = (v: string | null): Node =>
+    v ? el('span', { class: 'flow-val' }, [`${v.slice(0, 14)}…${v.slice(-6)}`]) : document.createTextNode('')
+
+  const msgRow = (
+    n: number,
+    dir: 'to-right' | 'to-left',
+    label: string,
+    cap: string,
+    value: string | null,
+    hl = false,
+  ) =>
+    el('div', { class: `flow-msg ${dir}${stateCls(n)}` }, [
       el('span', { class: 'flow-node' }),
       el('span', { class: 'flow-line' }, [
         el('span', { class: `flow-chip${hl ? ' hl' : ''}` }, [label]),
         el('span', { class: 'flow-cap' }, [cap]),
+        valChip(value),
         el('span', { class: 'flow-arrow', 'aria-hidden': 'true' }, [dir === 'to-right' ? '▶' : '◀']),
       ]),
       el('span', { class: 'flow-node' }),
     ])
+
+  const rVal = step >= 1 ? hexPoint(tState.R) : null
+  const cVal = step >= 2 ? hexScalar(tState.c) : null
+  const sVal = step >= 3 ? hexScalar(tState.s) : null
+
   return el('div', { class: `flow${ni ? ' ni' : ''}`, role: 'img', 'aria-label': desc }, [
     el('div', { class: 'flow-lanes', 'aria-hidden': 'true' }, [
       el('div', { class: 'flow-lane' }, [
@@ -192,114 +265,124 @@ function flowDiagram(mode: TMode): HTMLElement {
       ]),
     ]),
     el('div', { class: 'flow-msgs', 'aria-hidden': 'true' }, [
-      msgRow('to-right', 'R = [k]G', 'commit'),
+      msgRow(1, 'to-right', 'R = [k]G', 'commit', rVal),
       ni
-        ? el('div', { class: 'flow-self' }, [
+        ? el('div', { class: `flow-self${stateCls(2)}` }, [
             el('span', { class: 'flow-chip accent' }, ['c = H(G, pk, R, m)']),
             el('span', { class: 'flow-self-note' }, ['computed by the hash — nothing is sent']),
+            valChip(cVal),
           ])
-        : msgRow('to-left', 'c', 'random challenge', true),
-      msgRow('to-right', 's = k + c·x', 'respond'),
+        : msgRow(2, 'to-left', 'c', 'random challenge', cVal, true),
+      msgRow(3, 'to-right', 's = k + c·x', 'respond', sVal),
     ]),
-    el('p', { class: 'flow-caption' }, [
-      ni
-        ? 'The hash replaces the verifier. R sits inside it, so the challenge stays bound to the commitment.'
-        : 'The verifier chooses c only after R is locked in — the ordering Fiat-Shamir must preserve.',
+  ])
+}
+
+/** The single, progressive explainer — one step at a time, not four cards at once. */
+function stepExplainer(): HTMLElement {
+  const ni = tState.mode === 'noninteractive'
+  const items: { title: string; body: (Node | string)[] }[] = [
+    { title: 'Ready', body: ['Press ', el('strong', {}, ['Start']), ' to run a real proof one move at a time.'] },
+    {
+      title: 'Step 1 · Prover commits',
+      body: [
+        'The prover picks a secret nonce ',
+        el('code', {}, ['k']),
+        ' and publishes ',
+        el('code', {}, ['R = [k]G']),
+        '. ',
+        el('code', {}, ['k']),
+        ' never leaves the prover — ',
+        el('code', {}, ['R']),
+        ' is now locked in.',
+      ],
+    },
+    {
+      title: ni ? 'Step 2 · The hash is the challenge' : 'Step 2 · Verifier challenges',
+      body: ni
+        ? [
+            'No verifier to ask: ',
+            el('code', {}, ['c = H(G, pk, R, m)']),
+            '. Because ',
+            el('code', {}, ['R']),
+            ' is inside the hash, ',
+            el('code', {}, ['c']),
+            ' is still pinned to the commitment — the hash faithfully imitates a verifier who moved second.',
+          ]
+        : [
+            'The verifier picks a fresh random ',
+            el('code', {}, ['c']),
+            ' — ',
+            el('em', {}, ['after']),
+            ' seeing ',
+            el('code', {}, ['R']),
+            ', so the prover cannot tune ',
+            el('code', {}, ['R']),
+            ' to a challenge it already knows.',
+          ],
+    },
+    {
+      title: 'Step 3 · Prover responds',
+      body: [
+        'The prover answers ',
+        el('code', {}, ['s = k + c·x  (mod L)']),
+        ', folding the private key ',
+        el('code', {}, ['x']),
+        ' into the nonce. This is the only step that uses the secret.',
+      ],
+    },
+    {
+      title: 'Step 4 · Verifier checks',
+      body: [
+        'The verifier recomputes both sides of ',
+        el('code', {}, ['[s]G = R + [c]pk']),
+        ' and compares them byte-for-byte — no secret needed to check.',
+      ],
+    },
+  ]
+  const it = items[tState.step]
+  return el('div', { class: 'step-explainer', role: 'status', 'aria-live': 'polite' }, [
+    el('div', { class: 'step-explainer-title' }, [it.title]),
+    el('p', { class: 'step-explainer-body' }, it.body),
+  ])
+}
+
+/**
+ * Compute-both-sides-and-compare, not assert (the §2 rule): render both sides of the
+ * verification equation in full and colour the byte-for-byte verdict.
+ */
+function equalityCompare(aHex: string, bHex: string): HTMLElement {
+  const holds = aHex === bHex
+  return el('div', { class: 'eqcompare', role: 'group', 'aria-label': 'Both sides of the verification equation' }, [
+    el('div', { class: 'eq-side' }, [el('span', { class: 'eq-key' }, ['[s]G']), el('span', { class: 'eq-hex' }, [aHex])]),
+    el('div', { class: 'eq-side' }, [
+      el('span', { class: 'eq-key' }, ['R + [c]pk']),
+      el('span', { class: 'eq-hex' }, [bHex]),
+    ]),
+    el('div', { class: `eq-verdict ${holds ? 'match' : 'nomatch'}` }, [
+      el('span', { class: 'badge-icon', 'aria-hidden': 'true' }, [holds ? '=' : '≠']),
+      el('span', {}, [holds ? 'Both sides are byte-for-byte identical' : 'The two sides differ']),
     ]),
   ])
 }
 
 function renderTransform(body: HTMLElement): void {
   body.replaceChildren()
-  body.append(flowDiagram(tState.mode))
-  const list = el('ol', { class: 'steps' })
+  body.append(flowDiagram(tState.mode, tState.step))
+  body.append(stepExplainer())
 
-  // Step 1 — commit
-  list.append(
-    stepCard(1, 'Prover', 'Commit', [
-      'Pick a secret random nonce ',
-      el('code', {}, ['k']),
-      ', send the commitment ',
-      el('code', {}, ['R = [k]G']),
-      '.',
-      tState.step >= 1
-        ? el('div', { class: 'compare', role: 'group', 'aria-label': 'Commitment value' }, [
-            hexChip('R =', hexPoint(tState.R)),
-          ])
-        : document.createTextNode(''),
-    ]),
-  )
-
-  // Step 2 — challenge (the substitution)
-  const chalChildren: (Node | string)[] =
-    tState.mode === 'interactive'
-      ? [
-          'The verifier sees ',
-          el('code', {}, ['R']),
-          ', then throws a fresh random challenge ',
-          el('code', {}, ['c']),
-          '. Crucially it chooses ',
-          el('em', {}, ['after']),
-          ' the commitment is locked in.',
-        ]
-      : [
-          'There is no verifier to ask. Fiat-Shamir substitutes ',
-          el('code', {}, ['c = H(G, pk, R, m)']),
-          ' — the hash plays the verifier. Because ',
-          el('code', {}, ['R']),
-          ' is inside the hash, the challenge still depends on the already-committed value.',
-        ]
-  if (tState.step >= 2) {
-    chalChildren.push(
-      el('div', { class: 'subst' }, [
-        el('div', { class: 'compare', role: 'group', 'aria-label': 'Challenge value' }, [
-          hexChip(tState.mode === 'interactive' ? 'c (random) =' : 'c = H(…) =', hexScalar(tState.c)),
-        ]),
-      ]),
-    )
-  }
-  list.append(stepCard(2, 'Verifier → Hash', 'Challenge', chalChildren))
-
-  // Step 3 — respond
-  list.append(
-    stepCard(3, 'Prover', 'Respond', [
-      'Answer with ',
-      el('code', {}, ['s = k + c·x  (mod L)']),
-      ', where ',
-      el('code', {}, ['x']),
-      ' is the private key.',
-      tState.step >= 3
-        ? el('div', { class: 'compare', role: 'group', 'aria-label': 'Response value' }, [
-            hexChip('s =', hexScalar(tState.s)),
-          ])
-        : document.createTextNode(''),
-    ]),
-  )
-
-  // Step 4 — verify
-  const verifyChildren: (Node | string)[] = [
-    'Check the equation ',
-    el('code', {}, ['[s]G  ==  R + [c]pk']),
-    '. Compute both sides and compare byte-for-byte.',
-  ]
   if (tState.step >= 4) {
     const lhs = mulG(tState.s)
-    // RHS = R + [c]pk, using the real verifier's algebra.
     const rhsReal = tState.R.add(own.statement.pk.multiply(tState.c === 0n ? 1n : tState.c))
     const holds = hexPoint(lhs) === hexPoint(rhsReal)
-    verifyChildren.push(
-      el('div', { class: 'compare', role: 'group', 'aria-label': 'Both sides of the verification equation' }, [
-        hexChip('[s]G       =', hexPoint(lhs)),
-        hexChip('R + [c]pk  =', hexPoint(rhsReal)),
+    body.append(
+      el('div', { style: 'margin-top:0.9rem' }, [
+        equalityCompare(hexPoint(lhs), hexPoint(rhsReal)),
+        indicatorPair(judge('honest', holds), holds),
       ]),
-      indicatorPair(judge('honest', holds), holds),
     )
   }
-  list.append(stepCard(4, 'Verifier', 'Verify', verifyChildren))
 
-  body.append(list)
-
-  // Controls
   const next = el('button', { type: 'button', class: 'primary' }, [nextLabel()])
   next.disabled = tState.step >= 4
   next.addEventListener('click', () => {
@@ -339,24 +422,12 @@ function advanceTransform(): void {
   }
 }
 
-function stepCard(
-  n: number,
-  role: string,
-  title: string,
-  children: (Node | string)[],
-): HTMLLIElement {
-  return el('li', { class: 'step', 'data-done': String(tState.step >= n) }, [
-    el('div', { class: 'step-role' }, [`Step ${n} · ${role}`]),
-    el('div', { class: 'step-title' }, [title]),
-    el('div', {}, children),
-  ])
-}
 
 /* ============================================================================
    WHAT IS "TRANSCRIPT" + BREAK IT YOURSELF
    ============================================================================ */
 const breakState = {
-  message: 'transfer 100 coins from pk to attacker',
+  message: 'login as alice@bank — session 4f9c',
   result: null as null | {
     proof: Proof
     holds: boolean
@@ -430,7 +501,7 @@ function transcriptAndBreak(): HTMLElement {
     renderBreakResult(resultMount)
   })
 
-  const forgeBtn = el('button', { type: 'button', class: 'danger' }, ["Forge a proof for a key you don't own"])
+  const forgeBtn = el('button', { type: 'button', class: 'danger' }, ["Forge Alice's proof (you don't have her key)"])
   forgeBtn.addEventListener('click', () => {
     const msg = enc.encode(breakState.message)
     const attempt = forgeAgainstTarget(target.pk, msg, fields)
@@ -466,11 +537,11 @@ function transcriptAndBreak(): HTMLElement {
     el('span', { class: 'section-kicker' }, ['The question the lab exists for']),
     el('h2', {}, ['What, exactly, is "the transcript"?']),
     el('p', { class: 'lead' }, [
-      'Fiat-Shamir says: hash the transcript. But which values? Toggle what the challenge hash covers and watch the formula change. Then attack a key ',
-      el('strong', {}, ['whose private key you do not have']),
-      ' — the forger below is only ever handed the public key ',
+      'Fiat-Shamir says: hash the transcript. But which values? Toggle what the challenge hash covers and watch the formula change. Then try to ',
+      el('strong', {}, ['impersonate Alice']),
+      ' — prove you hold her private key when you do not. The forger below is only ever handed Alice’s public key ',
       el('code', {}, [`pk = ${hexPoint(target.pk).slice(0, 12)}…`]),
-      '.',
+      '; her secret never exists in the code path.',
     ]),
     el('div', { class: 'card' }, [
       el('h3', {}, ['Fields fed into the challenge']),
@@ -809,6 +880,24 @@ function frozenHeartPanel(): HTMLElement {
           ' — an idealisation where the hash H is treated as a truly random function that both prover and verifier can only query. That proof assumes the challenge is a random function of the ',
           el('em', {}, ['entire']),
           ' transcript. Omit part of the transcript and you are outside the model the proof covers, which is exactly why these bugs are not caught by “but Fiat-Shamir is proven secure.” Whether SHA-512 is close enough to a random oracle is a separate assumption, not a theorem.',
+        ]),
+      ]),
+      el('details', {}, [
+        el('summary', {}, ['References']),
+        el('ul', {}, [
+          el('li', {}, [
+            'Trail of Bits (2022), “Coordinated Disclosure of Vulnerabilities Affecting Girault, Bulletproofs, and PlonK” — the Frozen Heart series (',
+            el('a', { href: 'https://blog.trailofbits.com/', rel: 'noopener' }, ['blog.trailofbits.com']),
+            ').',
+          ]),
+          el('li', {}, [
+            'Bernhard, Pereira & Warinschi (2012), “How Not to Prove Yourself: Pitfalls of the Fiat–Shamir Heuristic and Applications to Helios,” ASIACRYPT 2012 — the weak-vs-strong Fiat-Shamir distinction.',
+          ]),
+          el('li', {}, [
+            'ristretto255: ',
+            el('a', { href: 'https://www.rfc-editor.org/rfc/rfc9496', rel: 'noopener' }, ['RFC 9496']),
+            ' (the group and the encoding vectors this lab tests against).',
+          ]),
         ]),
       ]),
     ]),
