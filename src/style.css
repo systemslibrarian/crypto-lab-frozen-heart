@@ -22,6 +22,9 @@
   --safe-fill: #065f46;
   --safe-ink: #ffffff;
 
+  --held-text: #60a5fa;
+  --held-fill: #1e40af;
+
   --alarm-text: #f87171;
   --alarm-fill: #b91c1c;
   --alarm-ink: #ffffff;
@@ -51,6 +54,9 @@
   --safe-text: #047040;
   --safe-fill: #065f46;
   --safe-ink: #ffffff;
+
+  --held-text: #1d4ed8;
+  --held-fill: #1e40af;
 
   --alarm-text: #b91c1c;
   --alarm-fill: #b91c1c;
@@ -431,7 +437,7 @@ body {
   color: var(--safe-text);
 }
 .is-held {
-  color: var(--safe-text);
+  color: var(--held-text);
 }
 .is-alarm {
   color: var(--alarm-text);
@@ -443,6 +449,23 @@ body {
 .indicator.good {
   border-color: var(--safe-fill);
   background: color-mix(in oklab, var(--safe-fill) 14%, var(--panel));
+}
+.indicator.held {
+  border-color: color-mix(in oklab, var(--held-fill) 70%, var(--border));
+  background: color-mix(in oklab, var(--held-fill) 12%, var(--panel));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .indicator.flash {
+    animation: verdict-flash 0.9s ease-out 1;
+  }
+  @keyframes verdict-flash {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--alarm-fill) 60%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 12px transparent;
+    }
+  }
 }
 
 /* --------------------------------- compare ---------------------------------- */
@@ -949,6 +972,269 @@ details[open] summary {
     grid-column: 2;
     text-align: left;
   }
+}
+
+/* --------------------------------- hero CTA --------------------------------- */
+.cl-hero-cta {
+  margin-top: 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+.cta {
+  font-size: 1rem;
+  padding: 0.6rem 1.15rem;
+}
+.cl-hero-cta-note {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* ------------------------------- jump nav ----------------------------------- */
+.jump {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: var(--bg);
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 0.5rem;
+}
+.jump ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 1.1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0;
+}
+.jump li {
+  list-style: none;
+}
+#app .jump a {
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--text-dim);
+  padding: 0.2rem 0;
+  border-bottom: 2px solid transparent;
+}
+#app .jump a:hover {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+/* ------------------------------- presets ------------------------------------ */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.45rem 0.75rem;
+  background-color: var(--panel-2);
+  border-left-width: 3px;
+}
+.preset.tone-alarm {
+  border-left-color: var(--alarm-fill);
+}
+.preset.tone-warn {
+  border-left-color: var(--warn-fill);
+}
+.preset.tone-good {
+  border-left-color: var(--safe-fill);
+}
+.preset.active {
+  border-color: var(--accent-text);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+.preset-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.preset-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.custom-transcript {
+  margin-top: 0.9rem;
+}
+.field-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+.text-input {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--code-bg);
+  color: var(--text);
+  font: inherit;
+}
+#app button.ghost {
+  background-color: transparent;
+}
+
+/* --------------------------- guided narration ------------------------------- */
+.guide-banner {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.guide-banner.tone-good {
+  border-color: var(--safe-fill);
+  background: color-mix(in oklab, var(--safe-fill) 12%, var(--panel));
+}
+.guide-banner.tone-info {
+  border-color: color-mix(in oklab, var(--held-fill) 70%, var(--border));
+  background: color-mix(in oklab, var(--held-fill) 12%, var(--panel));
+}
+.guide-banner.tone-alarm {
+  border-color: var(--alarm-fill);
+  background: color-mix(in oklab, var(--alarm-fill) 12%, var(--panel));
+}
+
+/* --------------------- animated, token-based formula ------------------------ */
+.formula .tok {
+  display: inline-block;
+}
+.formula .tok.dropping {
+  text-decoration: line-through;
+  color: var(--alarm-text);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .formula .tok.dropping {
+    animation: tok-drop 0.55s ease forwards;
+  }
+  @keyframes tok-drop {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(7px);
+    }
+  }
+  .formula .tok.adding {
+    animation: tok-add 0.45s ease;
+  }
+  @keyframes tok-add {
+    0% {
+      opacity: 0.2;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+}
+
+/* --------------------- side-by-side headline comparison --------------------- */
+.cmp {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.8rem;
+  align-items: stretch;
+}
+.cmp-col {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+}
+.cmp-col.good {
+  border-color: color-mix(in oklab, var(--safe-fill) 55%, var(--border));
+  background: color-mix(in oklab, var(--safe-fill) 7%, var(--panel));
+}
+.cmp-col.alarm {
+  border-color: var(--alarm-fill);
+  background: color-mix(in oklab, var(--alarm-fill) 8%, var(--panel));
+}
+.cmp-head {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+.cmp-row {
+  display: grid;
+  grid-template-columns: 4rem 1fr;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+  align-items: baseline;
+}
+.cmp-k {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cmp-delta {
+  align-self: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  color: var(--alarm-text);
+}
+@media (max-width: 640px) {
+  .cmp {
+    grid-template-columns: 1fr;
+  }
+  .cmp-delta {
+    text-align: center;
+  }
+}
+
+/* ------------------------------ audit panel --------------------------------- */
+.codeblock {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.codeblock.bad {
+  border-color: color-mix(in oklab, var(--alarm-fill) 45%, var(--border));
+}
+.codeblock.good {
+  border-color: color-mix(in oklab, var(--safe-fill) 50%, var(--border));
+}
+.codeblock-title {
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+.codeblock.bad .codeblock-title {
+  color: var(--alarm-text);
+}
+.codeblock.good .codeblock-title {
+  color: var(--safe-text);
+}
+.codeblock pre {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  overflow-x: auto;
+  background-color: var(--code-bg);
+}
+.codeblock pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--text);
+}
+.checklist {
+  padding-left: 1.1rem;
+}
+.checklist li {
+  margin: 0.35rem 0;
 }
 
 /* ------------------------------- scripture ---------------------------------- */

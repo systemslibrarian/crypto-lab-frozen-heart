@@ -70,16 +70,100 @@ const own = keygen()
 // The live transcript policy the break-it panel and the formula read from. Starts strong.
 const fields: TranscriptFields = { ...STRONG_FIELDS }
 
+/* ---------------------------- named transcript presets ---------------------- */
+type PresetTone = 'good' | 'warn' | 'alarm'
+interface Preset {
+  label: string
+  fields: TranscriptFields
+  tone: PresetTone
+  hint: string
+}
+const PRESETS: Preset[] = [
+  { label: 'Strong', fields: { ...STRONG_FIELDS }, tone: 'good', hint: 'every value bound' },
+  { label: 'Drop R', fields: { ...STRONG_FIELDS, R: false }, tone: 'alarm', hint: 'forgery' },
+  { label: 'Drop m', fields: { ...STRONG_FIELDS, message: false }, tone: 'warn', hint: 'replay' },
+  { label: 'Drop pk', fields: { ...STRONG_FIELDS, pk: false }, tone: 'warn', hint: 'unbound proof' },
+  { label: 'Drop G', fields: { ...STRONG_FIELDS, g: false }, tone: 'good', hint: 'harmless here' },
+]
+
+/* ------------------------- shareable state via URL hash --------------------- */
+function encodeState(): string {
+  const letters = (fields.g ? 'g' : '') + (fields.pk ? 'p' : '') + (fields.R ? 'r' : '') + (fields.message ? 'm' : '')
+  return `#c=${letters || '-'}&m=${encodeURIComponent(breakState.message)}`
+}
+function applyStateFromHash(): void {
+  const h = location.hash.replace(/^#/, '')
+  if (!h) return
+  const params = new URLSearchParams(h)
+  const c = params.get('c')
+  if (c) {
+    fields.g = c.includes('g')
+    fields.pk = c.includes('p')
+    fields.R = c.includes('r')
+    fields.message = c.includes('m')
+  }
+  const m = params.get('m')
+  if (m !== null) breakState.message = m
+}
+function persistState(): void {
+  history.replaceState(null, '', encodeState())
+}
+
+/* ---------- controller the hero CTA / guided flow drives the break panel with ---------- */
+interface BreakController {
+  setFields(next: TranscriptFields, animate?: boolean): void
+  forge(): void
+  reveal(): void
+  narrate(text: string, tone: PresetTone | 'info'): void
+  clearNarration(): void
+}
+let breakCtrl: BreakController | null = null
+let guideRunning = false
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+
+/** The guided 60-second path to the exploit — the single highest-leverage entry point. */
+async function runGuidedExploit(): Promise<void> {
+  if (!breakCtrl || guideRunning) return
+  guideRunning = true
+  const c = breakCtrl
+  try {
+    c.reveal()
+    await sleep(550)
+    c.narrate('Step 1 of 4 — Strong transcript: every public value is inside the hash.', 'good')
+    c.setFields({ ...STRONG_FIELDS })
+    await sleep(1600)
+    c.narrate('Step 2 of 4 — Try to forge Alice’s proof. The real verifier rejects it.', 'info')
+    c.forge()
+    await sleep(2200)
+    c.narrate('Step 3 of 4 — Drop just the commitment R from the hash. Nothing else changes.', 'alarm')
+    c.setFields({ ...STRONG_FIELDS, R: false }, true)
+    await sleep(2000)
+    c.narrate('Step 4 of 4 — Forge again. Same verifier — now it ACCEPTS. Equation HOLDS, verdict ALARM.', 'alarm')
+    c.forge()
+  } finally {
+    guideRunning = false
+  }
+}
+
 /* ============================================================================
    HERO
    ============================================================================ */
 function hero(): HTMLElement {
+  const cta = el('button', { type: 'button', class: 'primary cta' }, [
+    el('span', { 'aria-hidden': 'true' }, ['▶ ']),
+    'Show me the bug',
+  ])
+  cta.addEventListener('click', () => void runGuidedExploit())
   return el('header', { class: 'cl-hero' }, [
     el('div', { class: 'cl-hero-main' }, [
       el('h1', { class: 'cl-hero-title' }, ['Frozen Heart']),
       el('p', { class: 'cl-hero-sub' }, ['Weak Fiat-Shamir · transcript binding in NIZKs']),
       el('p', { class: 'cl-hero-desc' }, [
         'Runs a real hand-rolled Schnorr proof over ristretto255, turns it non-interactive with Fiat-Shamir, then lets you drop one value from the challenge hash and forge a proof the real verifier accepts.',
+      ]),
+      el('div', { class: 'cl-hero-cta' }, [
+        cta,
+        el('span', { class: 'cl-hero-cta-note' }, ['Runs the whole exploit in ~10 seconds, against the real verifier.']),
       ]),
     ]),
     el('aside', { class: 'cl-hero-why', 'aria-label': 'Why it matters' }, [
@@ -88,6 +172,24 @@ function hero(): HTMLElement {
         'In 2022 the same one-line mistake — a Fiat-Shamir hash missing part of the transcript — let attackers forge proofs across independent production systems. The proof math was correct; the hash input was one value short.',
       ]),
     ]),
+  ])
+}
+
+/** Sticky in-page navigator so a long demo feels guided, not scroll-linear. */
+function jumpNav(): HTMLElement {
+  const links: [string, string][] = [
+    ['#sec-transform', 'The transform'],
+    ['#sec-break', 'Break the verifier'],
+    ['#sec-ladder', 'Omission ladder'],
+    ['#sec-audit', 'Audit checklist'],
+    ['#sec-frozen', 'Frozen Heart'],
+  ]
+  return el('nav', { class: 'jump', 'aria-label': 'Jump to section' }, [
+    el(
+      'ul',
+      {},
+      links.map(([href, label]) => el('li', {}, [el('a', { href }, [label])])),
+    ),
   ])
 }
 
@@ -127,7 +229,7 @@ const TMSG = enc.encode('I know the secret key behind pk')
 
 function transformPanel(): HTMLElement {
   const body = el('div', {})
-  const section = el('section', {}, [
+  const section = el('section', { id: 'sec-transform' }, [
     el('span', { class: 'section-kicker' }, ['The one idea']),
     el('h2', {}, ['Interactive → non-interactive: who chooses the challenge?']),
     el('p', { class: 'lead' }, [
@@ -438,43 +540,85 @@ const breakState = {
   },
 }
 
-function fieldFormula(): string {
-  const parts: string[] = []
-  if (fields.g) parts.push('G')
-  if (fields.pk) parts.push('pk')
-  if (fields.R) parts.push('R')
-  if (fields.message) parts.push('m')
-  return `c = H(${parts.join(', ') || '∅'})`
+/** Static headline comparison: the identical protocol, one field apart, both run for real. */
+function headlineCompare(): HTMLElement {
+  const msg = enc.encode('login as alice@bank')
+  const strongF = { ...STRONG_FIELDS }
+  const weakF = { ...STRONG_FIELDS, R: false }
+  const strongForged = verify(target, forgeAgainstTarget(target.pk, msg, strongF).proof!, msg, strongF).equationHolds
+  const weakForged = verify(target, forgeAgainstTarget(target.pk, msg, weakF).proof!, msg, weakF).equationHolds
+  const col = (tone: 'good' | 'alarm', head: string, formula: string, order: string, outcome: string, forged: boolean) =>
+    el('div', { class: `cmp-col ${tone}` }, [
+      el('div', { class: 'cmp-head' }, [head]),
+      el('div', { class: 'cmp-row' }, [el('span', { class: 'cmp-k' }, ['hash']), el('code', {}, [formula])]),
+      el('div', { class: 'cmp-row' }, [el('span', { class: 'cmp-k' }, ['order']), el('span', {}, [order])]),
+      el('div', { class: 'cmp-row' }, [
+        el('span', { class: 'cmp-k' }, ['forgery']),
+        el('span', { class: forged ? 'is-alarm' : 'is-held' }, [
+          el('span', { 'aria-hidden': 'true' }, [forged ? '⚠ ' : '✓ ']),
+          outcome,
+        ]),
+      ]),
+    ])
+  return el('div', { class: 'cmp' }, [
+    col('good', 'Strong', 'c = H(G, pk, R, m)', 'R frozen before c', 'verifier REJECTS', strongForged),
+    el('div', { class: 'cmp-delta', 'aria-hidden': 'true' }, ['− R']),
+    col('alarm', 'Weak', 'c = H(G, pk, m)', 'R solved after c', 'verifier ACCEPTS', weakForged),
+  ])
 }
 
 function transcriptAndBreak(): HTMLElement {
-  const formulaEl = el('div', { class: 'formula', id: 'fs-formula', role: 'status', 'aria-live': 'polite' }, [
-    fieldFormula(),
-  ])
+  const formulaEl = el('div', { class: 'formula', id: 'fs-formula', role: 'status', 'aria-live': 'polite' })
   const orderMount = el('div', { id: 'ordering-mount' })
-  const renderOrder = (): void => {
-    orderMount.replaceChildren(orderingStrip(fields.R))
-  }
   const resultMount = el('div', { id: 'break-result' })
+  const guideBanner = el('div', { class: 'guide-banner', role: 'status', 'aria-live': 'polite', hidden: true })
 
+  const FIELD_ORDER: [keyof TranscriptFields, string][] = [
+    ['g', 'G'],
+    ['pk', 'pk'],
+    ['R', 'R'],
+    ['message', 'm'],
+  ]
+
+  // Animated, token-based formula: when a field leaves the hash it visibly drops out.
+  function renderFormula(prev?: TranscriptFields): void {
+    formulaEl.replaceChildren(document.createTextNode('c = H('))
+    const toks: HTMLElement[] = []
+    for (const [k, name] of FIELD_ORDER) {
+      if (fields[k]) toks.push(el('span', { class: `tok${prev && !prev[k] ? ' adding' : ''}` }, [name]))
+      else if (prev && prev[k]) toks.push(el('span', { class: 'tok dropping', 'aria-hidden': 'true' }, [name]))
+    }
+    toks.forEach((t, i) => {
+      if (i > 0) formulaEl.append(document.createTextNode(', '))
+      formulaEl.append(t)
+    })
+    formulaEl.append(document.createTextNode(')'))
+    if (prev) setTimeout(() => renderFormula(), 580)
+  }
+  const renderOrder = (): void => orderMount.replaceChildren(orderingStrip(fields.R))
+
+  const toggleInputs = {} as Record<keyof TranscriptFields, HTMLInputElement>
   const toggleDefs: { key: keyof TranscriptFields; name: string; note: string }[] = [
     { key: 'g', name: 'Generator G', note: 'A fixed public constant of the group.' },
     { key: 'pk', name: 'Public key pk', note: 'The statement — the key you claim to hold.' },
     { key: 'R', name: 'Commitment R', note: 'The value the prover must lock in before the challenge.' },
     { key: 'message', name: 'Message m', note: 'What the proof is about; the context / domain.' },
   ]
-
   const toggles = el('div', { class: 'field-toggles', role: 'group', 'aria-label': 'Fields included in the challenge hash' })
   for (const d of toggleDefs) {
     const id = `ft-${d.key}`
     const input = el('input', { type: 'checkbox', id }) as HTMLInputElement
     input.checked = fields[d.key]
+    toggleInputs[d.key] = input
     input.addEventListener('change', () => {
+      const prev = { ...fields }
       fields[d.key] = input.checked
-      formulaEl.textContent = fieldFormula()
+      renderFormula(prev)
       renderOrder()
       breakState.result = null
       renderBreakResult(resultMount)
+      persistState()
+      updatePresetActive()
     })
     toggles.append(
       el('label', { class: 'field-toggle', for: id }, [
@@ -486,23 +630,46 @@ function transcriptAndBreak(): HTMLElement {
 
   // message input
   const msgId = 'break-msg'
-  const msgInput = el('input', {
-    type: 'text',
-    id: msgId,
-    value: breakState.message,
-    style: 'width:100%;padding:0.5rem 0.7rem;border-radius:8px;',
-  }) as HTMLInputElement
-  msgInput.style.border = '1px solid var(--border)'
-  msgInput.style.background = 'var(--code-bg)'
-  msgInput.style.color = 'var(--text)'
+  const msgInput = el('input', { type: 'text', id: msgId, class: 'text-input', value: breakState.message }) as HTMLInputElement
   msgInput.addEventListener('input', () => {
     breakState.message = msgInput.value
     breakState.result = null
     renderBreakResult(resultMount)
+    persistState()
   })
 
-  const forgeBtn = el('button', { type: 'button', class: 'danger' }, ["Forge Alice's proof (you don't have her key)"])
-  forgeBtn.addEventListener('click', () => {
+  // presets
+  const presetRow = el('div', { class: 'presets', role: 'group', 'aria-label': 'Transcript presets' })
+  const presetBtns: HTMLButtonElement[] = []
+  const setFields = (next: TranscriptFields, animate = false): void => {
+    const prev = { ...fields }
+    Object.assign(fields, next)
+    for (const [k] of FIELD_ORDER) toggleInputs[k].checked = fields[k]
+    renderFormula(animate ? prev : undefined)
+    renderOrder()
+    breakState.result = null
+    renderBreakResult(resultMount)
+    persistState()
+    updatePresetActive()
+  }
+  function updatePresetActive(): void {
+    PRESETS.forEach((p, i) => {
+      const match = FIELD_ORDER.every(([k]) => p.fields[k] === fields[k])
+      presetBtns[i].setAttribute('aria-pressed', String(match))
+      presetBtns[i].classList.toggle('active', match)
+    })
+  }
+  PRESETS.forEach((p) => {
+    const b = el('button', { type: 'button', class: `preset tone-${p.tone}`, 'aria-pressed': 'false' }, [
+      el('span', { class: 'preset-label' }, [p.label]),
+      el('span', { class: 'preset-hint' }, [p.hint]),
+    ])
+    b.addEventListener('click', () => setFields(p.fields, fields.R && !p.fields.R))
+    presetBtns.push(b)
+    presetRow.append(b)
+  })
+
+  const runForge = (): void => {
     const msg = enc.encode(breakState.message)
     const attempt = forgeAgainstTarget(target.pk, msg, fields)
     const res = verify(target, attempt.proof!, msg, fields)
@@ -515,7 +682,9 @@ function transcriptAndBreak(): HTMLElement {
       message: breakState.message,
     }
     renderBreakResult(resultMount)
-  })
+  }
+  const forgeBtn = el('button', { type: 'button', class: 'danger' }, ["Forge Alice's proof (you don't have her key)"])
+  forgeBtn.addEventListener('click', runForge)
 
   const honestBtn = el('button', { type: 'button' }, ['Make an honest proof (a key you own)'])
   honestBtn.addEventListener('click', () => {
@@ -533,28 +702,48 @@ function transcriptAndBreak(): HTMLElement {
     renderBreakResult(resultMount)
   })
 
-  const section = el('section', {}, [
+  const copyBtn = el('button', { type: 'button', class: 'ghost' }, ['Copy link to this state'])
+  copyBtn.addEventListener('click', () => {
+    persistState()
+    const done = (t: string): void => {
+      copyBtn.textContent = t
+      setTimeout(() => (copyBtn.textContent = 'Copy link to this state'), 1600)
+    }
+    navigator.clipboard?.writeText(location.href).then(
+      () => done('Copied ✓'),
+      () => done('Copy failed'),
+    )
+  })
+
+  const section = el('section', { id: 'sec-break' }, [
     el('span', { class: 'section-kicker' }, ['The question the lab exists for']),
     el('h2', {}, ['What, exactly, is "the transcript"?']),
     el('p', { class: 'lead' }, [
-      'Fiat-Shamir says: hash the transcript. But which values? Toggle what the challenge hash covers and watch the formula change. Then try to ',
+      'Fiat-Shamir says: hash the transcript. But which values? Pick a preset — or toggle fields yourself — and try to ',
       el('strong', {}, ['impersonate Alice']),
-      ' — prove you hold her private key when you do not. The forger below is only ever handed Alice’s public key ',
+      ': prove you hold her private key when you do not. The forger is only ever handed Alice’s public key ',
       el('code', {}, [`pk = ${hexPoint(target.pk).slice(0, 12)}…`]),
       '; her secret never exists in the code path.',
     ]),
     el('div', { class: 'card' }, [
-      el('h3', {}, ['Fields fed into the challenge']),
-      toggles,
-      el('div', { style: 'margin-top:0.8rem' }, [
-        el('label', { for: msgId, style: 'font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.3rem' }, [
-          'Message / context m',
+      el('h3', {}, ['The one-field difference']),
+      headlineCompare(),
+    ]),
+    el('div', { class: 'card' }, [
+      guideBanner,
+      el('h3', {}, ['Choose what the challenge hash covers']),
+      presetRow,
+      el('details', { class: 'custom-transcript' }, [
+        el('summary', {}, ['Custom transcript (toggle individual fields)']),
+        toggles,
+        el('div', { style: 'margin-top:0.8rem' }, [
+          el('label', { for: msgId, class: 'field-label' }, ['Message / context m']),
+          msgInput,
         ]),
-        msgInput,
       ]),
       el('div', { style: 'margin-top:0.9rem' }, [formulaEl]),
       orderMount,
-      el('div', { class: 'btn-row', style: 'margin-top:0.9rem' }, [forgeBtn, honestBtn]),
+      el('div', { class: 'btn-row', style: 'margin-top:0.9rem' }, [forgeBtn, honestBtn, copyBtn]),
       resultMount,
       el('p', { class: 'what-isnt' }, [
         el('strong', {}, ['What a forgery here is and is not: ']),
@@ -566,8 +755,26 @@ function transcriptAndBreak(): HTMLElement {
       ]),
     ]),
   ])
+
+  // Register the controller the hero CTA / guided flow drives.
+  breakCtrl = {
+    setFields,
+    forge: runForge,
+    reveal: () => section.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    narrate: (text, tone) => {
+      guideBanner.hidden = false
+      guideBanner.className = `guide-banner tone-${tone}`
+      guideBanner.textContent = text
+    },
+    clearNarration: () => {
+      guideBanner.hidden = true
+    },
+  }
+
+  renderFormula()
   renderOrder()
   renderBreakResult(resultMount)
+  updatePresetActive()
   return section
 }
 
@@ -584,7 +791,7 @@ function renderBreakResult(mount: HTMLElement): void {
   }
   const verdict = judge(r.intent, r.holds)
   const kids: (Node | string)[] = [
-    indicatorPair(verdict, r.holds),
+    indicatorPair(verdict, r.holds, r.intent === 'forgery' && r.holds),
     el('p', { class: 'indicator-note', style: 'margin-top:0.6rem' }, [r.note]),
   ]
 
@@ -639,6 +846,7 @@ function algebraLine(n: string, expr: string, note: string, hex: string): HTMLEl
 function indicatorPair(
   verdict: ReturnType<typeof judge>,
   equationHolds: boolean,
+  flash = false,
 ): HTMLElement {
   const resultIcon = equationHolds ? '✓' : '✗'
   const resultText = equationHolds ? 'Equation HOLDS' : 'Equation FAILS'
@@ -647,7 +855,7 @@ function indicatorPair(
   const vIcon = verdict.integrity === 'alarm' ? '⚠' : verdict.integrity === 'sound' ? '✓' : '🛡'
   const vText = verdict.integrity === 'alarm' ? 'ALARM' : verdict.integrity === 'sound' ? 'SOUND' : 'HELD'
   const vCls = `is-${verdict.integrity}`
-  const box = verdict.integrity === 'alarm' ? 'alarm' : 'good'
+  const box = verdict.integrity === 'alarm' ? 'alarm' : verdict.integrity === 'held' ? 'held' : 'good'
 
   return el('div', { class: 'verdict-row' }, [
     el('div', { class: 'indicator' }, [
@@ -658,7 +866,7 @@ function indicatorPair(
       ]),
       el('p', { class: 'indicator-note' }, ['What the verifier’s equation [s]G = R + [c]pk returned.']),
     ]),
-    el('div', { class: `indicator ${box}` }, [
+    el('div', { class: `indicator ${box}${flash ? ' flash' : ''}` }, [
       el('div', { class: 'indicator-label' }, ['Security verdict']),
       el('div', { class: `indicator-value ${vCls}` }, [
         el('span', { class: 'badge-icon', 'aria-hidden': 'true' }, [vIcon]),
@@ -748,7 +956,7 @@ function ladderPanel(): HTMLElement {
     list.append(el('div', { class: 'rung' }, children))
   }
 
-  return el('section', {}, [
+  return el('section', { id: 'sec-ladder' }, [
     el('span', { class: 'section-kicker' }, ['The expert payoff']),
     el('h2', {}, ['The omission ladder — which omissions actually matter']),
     el('p', { class: 'lead' }, [
@@ -845,7 +1053,7 @@ function unboundDemo(_key: RungKey): HTMLElement {
    FROZEN HEART PANEL + RANDOM ORACLE NOTE
    ============================================================================ */
 function frozenHeartPanel(): HTMLElement {
-  return el('section', {}, [
+  return el('section', { id: 'sec-frozen' }, [
     el('span', { class: 'section-kicker' }, ['The 2022 disclosures']),
     el('h2', {}, ['Frozen Heart: one bug, many independent systems']),
     el('div', { class: 'card' }, [
@@ -945,21 +1153,88 @@ function scopeAndLinks(): HTMLElement {
 }
 
 /* ============================================================================
+   AUDIT PANEL — turn the insight into review behaviour
+   ============================================================================ */
+function auditPanel(): HTMLElement {
+  const codeBlock = (title: string, tone: 'bad' | 'good', lines: string[]) =>
+    el('div', { class: `codeblock ${tone}` }, [
+      el('div', { class: 'codeblock-title' }, [
+        el('span', { 'aria-hidden': 'true' }, [tone === 'bad' ? '✗ ' : '✓ ']),
+        title,
+      ]),
+      el('pre', { tabindex: '0', role: 'group', 'aria-label': title }, [el('code', {}, [lines.join('\n')])]),
+    ])
+  return el('section', { id: 'sec-audit' }, [
+    el('span', { class: 'section-kicker' }, ['For engineers']),
+    el('h2', {}, ['How to audit this in real code']),
+    el('p', { class: 'lead' }, [
+      'The bug never looks dramatic in a diff — it is a missing argument to a hash call. Here is the shape to grep for, and the rule that catches it.',
+    ]),
+    el('div', { class: 'card' }, [
+      el('div', { class: 'grid-2' }, [
+        codeBlock('Vulnerable — commitment omitted', 'bad', [
+          '// challenge left the commitment R out',
+          'c = H(G, pk, msg)',
+          's = k + c*x',
+          '// prover can now pick s first and',
+          '// solve R = [s]G - [c]pk  → forgery',
+        ]),
+        codeBlock('Fixed — bind the whole transcript', 'good', [
+          '// every public value AND the commitment',
+          'c = H(G, pk, R, msg)',
+          's = k + c*x',
+          '// R is pinned before c exists;',
+          '// no back-solving is possible',
+        ]),
+      ]),
+      el('h3', {}, ['Checklist: what the Fiat-Shamir challenge must bind']),
+      el('ul', { class: 'checklist' }, [
+        el('li', {}, [
+          el('strong', {}, ['Every prover commitment.']),
+          ' Missing one is catastrophic — universal forgery. This is the Frozen Heart bug.',
+        ]),
+        el('li', {}, [
+          el('strong', {}, ['The full statement / all public inputs']),
+          ' (here, ',
+          el('code', {}, ['pk']),
+          '). Missing it unbinds the proof from any particular instance.',
+        ]),
+        el('li', {}, [
+          el('strong', {}, ['The message / context, with domain separation.']),
+          ' Missing it permits cross-context replay.',
+        ]),
+        el('li', {}, [
+          el('strong', {}, ['A domain-separation tag']),
+          ' so a challenge from one protocol can never be reused in another.',
+        ]),
+        el('li', {}, [
+          el('strong', {}, ['Not every omission is equal.']),
+          ' A missing commitment forges; a missing message replays; a missing statement unbinds. Triage by which value left the hash.',
+        ]),
+      ]),
+    ]),
+  ])
+}
+
+/* ============================================================================
    MOUNT
    ============================================================================ */
 function renderApp(): void {
   const app = $('#app')
   app.replaceChildren(
     hero(),
+    jumpNav(),
     intro(),
     transformPanel(),
     transcriptAndBreak(),
     ladderPanel(),
+    auditPanel(),
     frozenHeartPanel(),
     scopeAndLinks(),
   )
 }
 
+applyStateFromHash()
 renderApp()
 
 // sanity marker for the a11y harness / manual checks that JS mounted
