@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Anti-flash theme init — must run before any stylesheet. Dark default.
+      (function () {
+        const saved = localStorage.getItem('theme')
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark')
+      })()
+    </script>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧊</text></svg>"
+    />
+    <title>Frozen Heart — crypto-lab</title>
+    <meta
+      name="description"
+      content="A Schnorr zero-knowledge proof forged under weak Fiat-Shamir because the challenge hash omitted the prover's commitment from the transcript."
+    />
+  </head>
+  <body>
+    <!-- BEGIN shared top bar — managed block (reapply-header.py; only __REPO__ is per-repo). Do not restyle. -->
+    <header class="cl-topbar" role="banner">
+      <a class="cl-topbar-home" href="https://crypto-lab.systemslibrarian.dev/">Crypto&nbsp;Lab</a>
+      <nav class="cl-topbar-nav" aria-label="Lab links">
+        <a
+          class="cl-topbar-link"
+          href="https://github.com/systemslibrarian/crypto-lab-frozen-heart"
+          rel="noopener"
+          >Source</a
+        >
+        <button id="cl-theme-toggle" class="cl-topbar-toggle" type="button" aria-pressed="false">
+          <span aria-hidden="true" class="cl-toggle-icon">☾</span>
+          <span class="cl-toggle-text">Dark</span>
+        </button>
+      </nav>
+    </header>
+    <script>
+      // Shared top bar behaviour (managed block): owns theme flip + persistence, demotes
+      // any competing banner, hides a lab's own toggle. dark default.
+      (function () {
+        const html = document.documentElement
+        const toggle = document.getElementById('cl-theme-toggle')
+        function paint() {
+          const light = html.getAttribute('data-theme') === 'light'
+          toggle.setAttribute('aria-pressed', String(light))
+          toggle.querySelector('.cl-toggle-icon').textContent = light ? '☀' : '☾'
+          toggle.querySelector('.cl-toggle-text').textContent = light ? 'Light' : 'Dark'
+        }
+        toggle.addEventListener('click', function () {
+          const light = html.getAttribute('data-theme') === 'light'
+          const next = light ? 'dark' : 'light'
+          html.setAttribute('data-theme', next)
+          localStorage.setItem('theme', next)
+          paint()
+        })
+        // Demote any other banner so there is a single banner landmark (the hero is content).
+        document.querySelectorAll('[role="banner"], header').forEach(function (el) {
+          if (!el.classList.contains('cl-topbar') && el.getAttribute('role') === 'banner') {
+            el.removeAttribute('role')
+          }
+        })
+        paint()
+      })()
+    </script>
+    <!-- END shared top bar -->
+
+    <main id="app"></main>
+
+    <footer class="scripture-footer">
+      <p>So whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31</p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
