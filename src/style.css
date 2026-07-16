@@ -571,6 +571,288 @@ details[open] summary {
   margin-bottom: 0.5rem;
 }
 
+/* --------------------------- flow (sequence) diagram ------------------------ */
+.flow {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem 0.8rem;
+  background-color: var(--panel);
+  margin-bottom: 1rem;
+}
+.flow-lanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px dashed var(--border);
+  margin-bottom: 0.6rem;
+}
+.flow-lane {
+  display: flex;
+  flex-direction: column;
+}
+.flow-lane.right {
+  text-align: right;
+}
+.flow-actor {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.flow.ni .flow-lane.right .flow-actor {
+  color: var(--accent-text);
+}
+.flow-actor-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.flow-msgs {
+  display: grid;
+  gap: 0.35rem;
+}
+.flow-msg {
+  display: grid;
+  grid-template-columns: 9px 1fr 9px;
+  align-items: center;
+  gap: 0.4rem;
+}
+.flow-node {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--accent);
+}
+.flow-line {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.35rem 0;
+}
+.flow-line::before {
+  content: '';
+  position: absolute;
+  top: 0.9rem;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--border);
+}
+.flow-chip {
+  position: relative;
+  z-index: 1;
+  background-color: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.15rem 0.55rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+.flow-chip.hl {
+  border-color: var(--accent-text);
+}
+.flow-chip.accent {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+  background-color: color-mix(in oklab, var(--accent) 10%, var(--panel-2));
+}
+.flow-cap {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.15rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background-color: var(--panel);
+  padding: 0 0.3rem;
+}
+.flow-arrow {
+  position: absolute;
+  top: 0.5rem;
+  z-index: 1;
+  color: var(--accent-text);
+  font-size: 0.8rem;
+}
+.to-right .flow-arrow {
+  right: -3px;
+}
+.to-left .flow-arrow {
+  left: -3px;
+}
+.flow-self {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0;
+  border: 1px dashed var(--accent-text);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 5%, var(--panel));
+}
+.flow-self-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.flow-caption {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.86rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .flow-lane.right {
+    text-align: left;
+  }
+}
+
+/* ------------------------------ ordering strip ------------------------------ */
+.ordering {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  margin-top: 0.9rem;
+}
+.ordering.good {
+  border-color: color-mix(in oklab, var(--safe-fill) 55%, var(--border));
+  background: color-mix(in oklab, var(--safe-fill) 8%, var(--panel));
+}
+.ordering.alarm {
+  border-color: var(--alarm-fill);
+  background: color-mix(in oklab, var(--alarm-fill) 10%, var(--panel));
+}
+.ordering-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.ordering-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.ordering-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+}
+.ordering-tag.good {
+  background-color: var(--safe-fill);
+  color: var(--safe-ink);
+}
+.ordering-tag.alarm {
+  background-color: var(--alarm-fill);
+  color: var(--alarm-ink);
+}
+.ordering-steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.55rem 0 0.1rem;
+}
+.ord-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem 0.25rem 0.3rem;
+  background-color: var(--panel);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+}
+.ord-pill.danger {
+  border-color: var(--alarm-fill);
+  color: var(--alarm-text);
+  font-weight: 600;
+}
+.ord-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background-color: var(--accent);
+  color: var(--accent-ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.ord-pill.danger .ord-num {
+  background-color: var(--alarm-fill);
+}
+.ord-sep {
+  color: var(--text-muted);
+}
+.ordering-caption {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+/* ------------------------------ forgery algebra ----------------------------- */
+.algebra {
+  margin-top: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--code-bg);
+  padding: 0.8rem 1rem;
+}
+.algebra-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 0.4rem;
+}
+.algebra-line {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(8rem, max-content) 1fr auto;
+  gap: 0.5rem 0.7rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+}
+.algebra-num {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.algebra-expr {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+.algebra-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.algebra-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: var(--safe-text);
+  text-align: right;
+}
+.algebra-foot {
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+@media (max-width: 640px) {
+  .algebra-line {
+    grid-template-columns: 1.1rem 1fr;
+  }
+  .algebra-note,
+  .algebra-val {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
 /* ------------------------------- scripture ---------------------------------- */
 .scripture-footer {
   max-width: 68rem;

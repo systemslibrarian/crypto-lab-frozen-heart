@@ -159,8 +159,59 @@ function modeButton(mode: TMode, label: string): HTMLButtonElement {
   return b
 }
 
+/**
+ * An accessible sequence diagram of the three-move protocol. It is a single graphic
+ * (role="img") with a full text alternative; the visual morphs when the mode toggles —
+ * the Verifier lane becomes a Hash box and the returned-challenge arrow becomes a value
+ * the hash computes in place. Motion is tied to the toggle, never idle.
+ */
+function flowDiagram(mode: TMode): HTMLElement {
+  const ni = mode === 'noninteractive'
+  const desc = ni
+    ? 'Sequence diagram. The prover sends commitment R to the hash side. The challenge c is computed as H of G, pk, R and the message — by the hash, not sent as a message. The prover sends response s. Because R is inside the hash, the challenge still depends on the committed R.'
+    : 'Sequence diagram. The prover sends commitment R to the verifier. The verifier sends back a random challenge c, chosen after seeing R. The prover sends response s.'
+  const msgRow = (dir: 'to-right' | 'to-left', label: string, cap: string, hl = false) =>
+    el('div', { class: `flow-msg ${dir}` }, [
+      el('span', { class: 'flow-node' }),
+      el('span', { class: 'flow-line' }, [
+        el('span', { class: `flow-chip${hl ? ' hl' : ''}` }, [label]),
+        el('span', { class: 'flow-cap' }, [cap]),
+        el('span', { class: 'flow-arrow', 'aria-hidden': 'true' }, [dir === 'to-right' ? '▶' : '◀']),
+      ]),
+      el('span', { class: 'flow-node' }),
+    ])
+  return el('div', { class: `flow${ni ? ' ni' : ''}`, role: 'img', 'aria-label': desc }, [
+    el('div', { class: 'flow-lanes', 'aria-hidden': 'true' }, [
+      el('div', { class: 'flow-lane' }, [
+        el('span', { class: 'flow-actor' }, ['Prover']),
+        el('span', { class: 'flow-actor-sub' }, ['knows secret x']),
+      ]),
+      el('div', { class: 'flow-lane right' }, [
+        el('span', { class: 'flow-actor' }, [ni ? 'Hash  H' : 'Verifier']),
+        el('span', { class: 'flow-actor-sub' }, [ni ? 'stands in for the verifier' : 'picks a random challenge']),
+      ]),
+    ]),
+    el('div', { class: 'flow-msgs', 'aria-hidden': 'true' }, [
+      msgRow('to-right', 'R = [k]G', 'commit'),
+      ni
+        ? el('div', { class: 'flow-self' }, [
+            el('span', { class: 'flow-chip accent' }, ['c = H(G, pk, R, m)']),
+            el('span', { class: 'flow-self-note' }, ['computed by the hash — nothing is sent']),
+          ])
+        : msgRow('to-left', 'c', 'random challenge', true),
+      msgRow('to-right', 's = k + c·x', 'respond'),
+    ]),
+    el('p', { class: 'flow-caption' }, [
+      ni
+        ? 'The hash replaces the verifier. R sits inside it, so the challenge stays bound to the commitment.'
+        : 'The verifier chooses c only after R is locked in — the ordering Fiat-Shamir must preserve.',
+    ]),
+  ])
+}
+
 function renderTransform(body: HTMLElement): void {
   body.replaceChildren()
+  body.append(flowDiagram(tState.mode))
   const list = el('ol', { class: 'steps' })
 
   // Step 1 — commit
@@ -306,7 +357,14 @@ function stepCard(
    ============================================================================ */
 const breakState = {
   message: 'transfer 100 coins from pk to attacker',
-  result: null as null | { proof: Proof; holds: boolean; intent: 'honest' | 'forgery'; note: string },
+  result: null as null | {
+    proof: Proof
+    holds: boolean
+    intent: 'honest' | 'forgery'
+    note: string
+    technique: boolean
+    message: string
+  },
 }
 
 function fieldFormula(): string {
@@ -322,6 +380,10 @@ function transcriptAndBreak(): HTMLElement {
   const formulaEl = el('div', { class: 'formula', id: 'fs-formula', role: 'status', 'aria-live': 'polite' }, [
     fieldFormula(),
   ])
+  const orderMount = el('div', { id: 'ordering-mount' })
+  const renderOrder = (): void => {
+    orderMount.replaceChildren(orderingStrip(fields.R))
+  }
   const resultMount = el('div', { id: 'break-result' })
 
   const toggleDefs: { key: keyof TranscriptFields; name: string; note: string }[] = [
@@ -339,6 +401,7 @@ function transcriptAndBreak(): HTMLElement {
     input.addEventListener('change', () => {
       fields[d.key] = input.checked
       formulaEl.textContent = fieldFormula()
+      renderOrder()
       breakState.result = null
       renderBreakResult(resultMount)
     })
@@ -377,6 +440,8 @@ function transcriptAndBreak(): HTMLElement {
       holds: res.equationHolds,
       intent: 'forgery',
       note: attempt.note,
+      technique: attempt.techniqueApplies,
+      message: breakState.message,
     }
     renderBreakResult(resultMount)
   })
@@ -391,6 +456,8 @@ function transcriptAndBreak(): HTMLElement {
       holds: res.equationHolds,
       intent: 'honest',
       note: 'An honest prover who knows the private key. The equation should hold under any policy.',
+      technique: false,
+      message: breakState.message,
     }
     renderBreakResult(resultMount)
   })
@@ -415,6 +482,7 @@ function transcriptAndBreak(): HTMLElement {
         msgInput,
       ]),
       el('div', { style: 'margin-top:0.9rem' }, [formulaEl]),
+      orderMount,
       el('div', { class: 'btn-row', style: 'margin-top:0.9rem' }, [forgeBtn, honestBtn]),
       resultMount,
       el('p', { class: 'what-isnt' }, [
@@ -427,6 +495,7 @@ function transcriptAndBreak(): HTMLElement {
       ]),
     ]),
   ])
+  renderOrder()
   renderBreakResult(resultMount)
   return section
 }
@@ -443,16 +512,53 @@ function renderBreakResult(mount: HTMLElement): void {
     return
   }
   const verdict = judge(r.intent, r.holds)
-  mount.append(
-    el('div', { style: 'margin-top:1rem' }, [
-      indicatorPair(verdict, r.holds),
-      el('p', { class: 'indicator-note', style: 'margin-top:0.6rem' }, [r.note]),
-      el('div', { class: 'compare', role: 'group', 'aria-label': 'Forged proof values' }, [
+  const kids: (Node | string)[] = [
+    indicatorPair(verdict, r.holds),
+    el('p', { class: 'indicator-note', style: 'margin-top:0.6rem' }, [r.note]),
+  ]
+
+  // When the forgery technique applied, show the algebra that produced it — the whole
+  // point is that the forgery is arithmetic, not a simulation.
+  if (r.intent === 'forgery' && r.technique) {
+    const msg = enc.encode(r.message)
+    const c = challenge(target.pk, r.proof.R, msg, fields)
+    kids.push(
+      el('div', { class: 'algebra', role: 'group', 'aria-label': 'Forgery derivation' }, [
+        el('div', { class: 'algebra-title' }, ['How the forgery was built — pure algebra, no secret key']),
+        algebraLine('①', 's', 'chosen at random', hexScalar(r.proof.s)),
+        algebraLine('②', 'c = H(G, pk, m)', 'the hash never sees R, so c is fixed first', hexScalar(c)),
+        algebraLine('③', 'R := [s]G − [c]pk', 'solved so the check is forced to pass', hexPoint(r.proof.R)),
+        el('p', { class: 'algebra-foot' }, [
+          'The verifier recomputes the same ',
+          el('code', {}, ['c']),
+          ' (it also skips ',
+          el('code', {}, ['R']),
+          ') and finds ',
+          el('code', {}, ['[s]G = R + [c]pk']),
+          '. It balances by construction — for a key whose secret the forger never had.',
+        ]),
+      ]),
+    )
+  } else {
+    kids.push(
+      el('div', { class: 'compare', role: 'group', 'aria-label': 'Proof values' }, [
         hexChip('R =', hexPoint(r.proof.R)),
         hexChip('s =', hexScalar(r.proof.s)),
       ]),
-    ]),
-  )
+    )
+  }
+
+  mount.append(el('div', { style: 'margin-top:1rem' }, kids))
+}
+
+function algebraLine(n: string, expr: string, note: string, hex: string): HTMLElement {
+  const short = hex.length > 26 ? `${hex.slice(0, 14)}…${hex.slice(-6)}` : hex
+  return el('div', { class: 'algebra-line' }, [
+    el('span', { class: 'algebra-num', 'aria-hidden': 'true' }, [n]),
+    el('span', { class: 'algebra-expr' }, [expr]),
+    el('span', { class: 'algebra-note' }, [note]),
+    el('span', { class: 'algebra-val', title: hex, 'aria-label': `equals ${hex}` }, [short]),
+  ])
 }
 
 /**
@@ -489,6 +595,39 @@ function indicatorPair(
       ]),
       el('p', { class: 'indicator-note' }, [verdict.label]),
     ]),
+  ])
+}
+
+/**
+ * The crux, visualised: the temporal order of operations, which reorders the instant you
+ * drop R from the hash. With R hashed, R is frozen before c exists. Without it, R is
+ * computed last — so the prover, not the hash, decides the outcome.
+ */
+function orderingStrip(rIncluded: boolean): HTMLElement {
+  const steps = rIncluded
+    ? ['commit R', 'c = H(…R…)', 'respond s']
+    : ['c = H(…)', 'pick s', 'solve R = [s]G − [c]pk']
+  const caption = rIncluded
+    ? 'R is frozen before the challenge exists — the prover cannot change it afterward.'
+    : 'R is computed last, after c and s are chosen — the prover, not the hash, controls the outcome.'
+  const cls = rIncluded ? 'good' : 'alarm'
+  const stepEls: (Node | string)[] = []
+  steps.forEach((label, i) => {
+    const last = i === steps.length - 1
+    const pill = el('span', { class: `ord-pill${!rIncluded && last ? ' danger' : ''}` }, [
+      el('span', { class: 'ord-num', 'aria-hidden': 'true' }, [String(i + 1)]),
+      label,
+    ])
+    stepEls.push(pill)
+    if (!last) stepEls.push(el('span', { class: 'ord-sep', 'aria-hidden': 'true' }, ['→']))
+  })
+  return el('div', { class: `ordering ${cls}`, role: 'group', 'aria-label': 'Order of operations' }, [
+    el('div', { class: 'ordering-head' }, [
+      el('span', { class: 'ordering-label' }, ['Who moves last?']),
+      el('span', { class: `ordering-tag ${cls}` }, [rIncluded ? 'sound' : 'forgeable']),
+    ]),
+    el('div', { class: 'ordering-steps' }, stepEls),
+    el('p', { class: 'ordering-caption' }, [caption]),
   ])
 }
 
