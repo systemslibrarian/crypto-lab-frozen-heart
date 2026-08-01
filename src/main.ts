@@ -49,9 +49,14 @@ function hexScalar(s: Scalar): string {
 /** A monospace hex chip with the full value available on hover / to assistive tech. */
 function hexChip(label: string, hex: string): HTMLElement {
   const short = hex.length > 26 ? `${hex.slice(0, 16)}…${hex.slice(-8)}` : hex
+  // `aria-label` is prohibited on a plain <span> (role=generic), so the full value
+  // is carried in a visually-hidden node instead of an attribute screen readers drop.
   return el('div', { class: 'compare-line', title: hex }, [
     el('span', { class: 'compare-key' }, [label + ' ']),
-    el('span', { 'aria-label': `${label} equals ${hex}` }, [short]),
+    el('span', {}, [
+      el('span', { 'aria-hidden': 'true' }, [short]),
+      el('span', { class: 'sr-only' }, [`${label} equals ${hex}`]),
+    ]),
   ])
 }
 
@@ -760,7 +765,12 @@ function transcriptAndBreak(): HTMLElement {
   breakCtrl = {
     setFields,
     forge: runForge,
-    reveal: () => section.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    reveal: () =>
+      section.scrollIntoView({
+        // Honour prefers-reduced-motion (WCAG 2.3.3): jump instead of animating.
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'start',
+      }),
     narrate: (text, tone) => {
       guideBanner.hidden = false
       guideBanner.className = `guide-banner tone-${tone}`
@@ -835,7 +845,10 @@ function algebraLine(n: string, expr: string, note: string, hex: string): HTMLEl
     el('span', { class: 'algebra-num', 'aria-hidden': 'true' }, [n]),
     el('span', { class: 'algebra-expr' }, [expr]),
     el('span', { class: 'algebra-note' }, [note]),
-    el('span', { class: 'algebra-val', title: hex, 'aria-label': `equals ${hex}` }, [short]),
+    el('span', { class: 'algebra-val', title: hex }, [
+      el('span', { 'aria-hidden': 'true' }, [short]),
+      el('span', { class: 'sr-only' }, [`equals ${hex}`]),
+    ]),
   ])
 }
 

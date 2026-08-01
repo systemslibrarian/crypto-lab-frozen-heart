@@ -88,6 +88,41 @@ body {
   border-radius: 4px;
 }
 
+/* Visually hidden but announced — carries full hex values that are truncated on screen. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Touch devices: 44x44 minimum target (WCAG 2.5.5). */
+@media (pointer: coarse) {
+  #app button,
+  #app summary,
+  .preset,
+  .field-toggle {
+    min-height: 44px;
+  }
+  #app button {
+    min-width: 44px;
+  }
+  #app .jump a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .field-toggle input {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
 /* ---------------------------------- layout ---------------------------------- */
 #app {
   max-width: 68rem;
@@ -133,7 +168,6 @@ body {
 }
 
 /* --------------------------------- hero ------------------------------------- */
-/* BEGIN cl-hero standard — managed, keep in sync across fleet */
 .cl-hero {
   display: flex;
   align-items: flex-start;
@@ -195,8 +229,11 @@ body {
     flex-basis: auto;
     width: 100%;
   }
+  .cl-hero-main {
+    flex-basis: auto;
+    min-width: 0;
+  }
 }
-/* END cl-hero standard */
 
 /* --------------------------------- cards ------------------------------------ */
 .card {
