@@ -945,6 +945,13 @@ function ladderPanel(): HTMLElement {
       ? 'Real verifier ACCEPTS a witness-free forgery'
       : 'Real verifier REJECTS the forgery attempt'
 
+    // The three measurements the severity chip is derived from, shown so the reader can
+    // see that the chip is a reading and not a label.
+    const measured = (label: string, hit: boolean): HTMLElement =>
+      el('span', { class: `rung-measure ${hit ? 'is-alarm' : 'is-held'}` }, [
+        `${label}: ${hit ? 'yes' : 'no'}`,
+      ])
+
     const children: (Node | string)[] = [
       el('div', { class: 'rung-head' }, [
         el('span', { class: 'rung-formula' }, [
@@ -960,6 +967,13 @@ function ladderPanel(): HTMLElement {
         el('strong', { class: rung.fixedTargetForged ? 'is-alarm' : 'is-held' }, [outcome + '. ']),
         rung.consequence,
       ]),
+      el('div', { class: 'rung-measures' }, [
+        el('span', { class: 'rung-measure-label' }, ['Measured just now: ']),
+        measured('fixed-target forgery verified', rung.fixedTargetForged),
+        measured('witness-free key+proof verified', rung.unboundMintVerifies),
+        measured('honest proof replayed under another message', rung.replayVerifies),
+      ]),
+      el('div', { class: 'rung-commentary' }, [rung.commentary]),
     ]
 
     // Give the two non-fatal-but-interesting omissions their own live demonstration.
@@ -975,7 +989,7 @@ function ladderPanel(): HTMLElement {
     el('p', { class: 'lead' }, [
       'Drop one value from the strong transcript ',
       el('code', {}, ['H(G, pk, R, m)']),
-      ' at a time. Not every omission is fatal — and knowing which is which is the difference between a scare story and understanding the bug. Every verdict below is the real verifier speaking, computed live.',
+      ' at a time. Not every omission is fatal — and knowing which is which is the difference between a scare story and understanding the bug. Every severity chip below is derived from three measurements taken against the real verifier when this page loaded — a fixed-target forgery attempt, a witness-free key-and-proof minting attempt, and a replay of one honest proof under a second message. The chip follows the readings; if the algebra underneath changed, the chip would change with it. The italic line under each rung is commentary, not a verdict.',
     ]),
     el('div', { class: 'card' }, [
       list,

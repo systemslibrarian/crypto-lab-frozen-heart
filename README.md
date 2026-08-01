@@ -52,7 +52,12 @@ chooses the challenge, which enables a genuine algebraic forgery.
 4. **The omission ladder** — drop each field in turn and see the verdict the *real verifier*
    returns: only dropping the commitment `R` is fatal; dropping the message enables replay;
    dropping the public key leaves proofs unbound to any identity; dropping the generator is
-   harmless in one fixed group. Each verdict is computed live, not asserted.
+   harmless in one fixed group. Each rung's severity is *derived* from three measurements
+   taken live against the real verifier — a fixed-target forgery attempt, a witness-free
+   key-and-proof minting attempt, and a replay of one honest proof under a second message —
+   and all three readings are shown next to the chip. The severity is never switched on the
+   rung's name, so if the algebra underneath changed the chip would change with it. The
+   italic line under each rung is commentary, and is labelled as such.
 5. **Frozen Heart (2022)** — the Trail of Bits disclosures that hit independent
    implementations of Girault's proof of knowledge, Bulletproofs, and PlonK with the *same*
    root cause, plus a one-panel note on the random-oracle model.
@@ -70,7 +75,7 @@ chooses the challenge, which enables a genuine algebraic forgery.
 
 ## Live Demo
 
-**https://crypto-lab.systemslibrarian.dev/crypto-lab-frozen-heart/**
+**https://systemslibrarian.github.io/crypto-lab-frozen-heart/**
 
 Step the transform, toggle the transcript fields, and forge a proof the real verifier
 accepts — then watch the security verdict alarm even though the equation balances.
@@ -116,16 +121,16 @@ npm run test:a11y  # axe-core WCAG 2.1 A/AA gate, both themes (needs a built dis
 Every one of these Fiat-Shamirs something, and so rests on the transcript-binding
 assumption this lab pokes at:
 
-- [zk-proof-lab](https://crypto-lab.systemslibrarian.dev/crypto-lab-zk-proof-lab/) — a
+- [zk-proof-lab](https://systemslibrarian.github.io/crypto-lab-zk-proof-lab/) — a
   zero-knowledge on-ramp
-- [ec-point-arithmetic](https://crypto-lab.systemslibrarian.dev/crypto-lab-ec-point-arithmetic/)
+- [ec-point-arithmetic](https://systemslibrarian.github.io/crypto-lab-ec-point-arithmetic/)
   — the group underneath
-- [bulletproofs](https://crypto-lab.systemslibrarian.dev/crypto-lab-bulletproofs/)
-- [snark-arena](https://crypto-lab.systemslibrarian.dev/crypto-lab-snark-arena/)
-- [stark-tower](https://crypto-lab.systemslibrarian.dev/crypto-lab-stark-tower/)
-- [zk-arena](https://crypto-lab.systemslibrarian.dev/crypto-lab-zk-arena/)
-- [mpcith-sign](https://crypto-lab.systemslibrarian.dev/crypto-lab-mpcith-sign/)
-- [frost-threshold](https://crypto-lab.systemslibrarian.dev/crypto-lab-frost-threshold/) —
+- [bulletproofs](https://systemslibrarian.github.io/crypto-lab-bulletproofs/)
+- [snark-arena](https://systemslibrarian.github.io/crypto-lab-snark-arena/)
+- [stark-tower](https://systemslibrarian.github.io/crypto-lab-stark-tower/)
+- [zk-arena](https://systemslibrarian.github.io/crypto-lab-zk-arena/)
+- [mpcith-sign](https://systemslibrarian.github.io/crypto-lab-mpcith-sign/)
+- [frost-threshold](https://systemslibrarian.github.io/crypto-lab-frost-threshold/) —
   nonce commitments
 
 ## Build & Verify
