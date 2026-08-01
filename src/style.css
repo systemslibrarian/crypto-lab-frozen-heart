@@ -13,6 +13,15 @@
   --text-dim: #cbd2de;
   --text-muted: #98a2b3;
   --border: #2c3444;
+  /* Control boundaries only (WCAG 2.1 SC 1.4.11). Controls are filled with
+     --panel-2 (.field-toggle) or --code-bg (.text-input), which sit 1.24:1 and
+     1.30:1 against --panel, so the border is the only thing delineating them.
+     --border itself is 1.25:1 on --panel-2. #6d737e keeps the palette's cool
+     slate hue and clears 3:1 on every surface a control sits on: 3.99:1 on
+     --bg, 3.62:1 on --panel, 3.27:1 on --panel-2, 4.05:1 on --code-bg.
+     --border is left unchanged for decorative rules — panel outlines, dividers,
+     table rules, .formula and .guide-banner. */
+  --border-strong: #6d737e;
 
   --accent: #be123c; /* crimson — the lab accent */
   --accent-text: #fb7185; /* accent hue lightened for small text/links on dark */
@@ -46,6 +55,11 @@
   --text-dim: #3d4757;
   --text-muted: #5a6474;
   --border: #d3d9e3;
+  /* Control boundaries only (SC 1.4.11) — see the :root note. #82858b clears
+     3:1 on every light surface a control sits on: 3.48:1 on --bg, 3.69:1 on
+     --panel, 3.26:1 on --panel-2 (which is also --code-bg here). The light
+     --border is 1.25:1–1.42:1 and stays as-is for decorative rules. */
+  --border-strong: #82858b;
 
   --accent: #be123c;
   --accent-text: #a10e32; /* darkened for AA on a light background */
@@ -345,7 +359,10 @@ body {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
-  border: 1px solid var(--border);
+  /* <label for> wrapping a checkbox — it is the 44x44 hit target (see the
+     pointer:coarse block), so its border is a control boundary.
+     SC 1.4.11: >=3.27:1 dark, >=3.26:1 light. */
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 0.55rem 0.75rem;
   background-color: var(--panel-2);
@@ -1060,7 +1077,7 @@ details[open] summary {
   width: 100%;
   padding: 0.5rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);   /* SC 1.4.11: >=3.27:1 dark, >=3.26:1 light */
   background-color: var(--code-bg);
   color: var(--text);
   font: inherit;
