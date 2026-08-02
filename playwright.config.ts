@@ -10,7 +10,10 @@ export default defineConfig({
     colorScheme: 'dark',
   },
   webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
+    // Build first: `vite preview` only serves the existing dist/, so without
+    // this a broken build leaves the last good bundle in place and the suite
+    // passes green against source that no longer compiles.
+    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173/crypto-lab-frozen-heart/',
     reuseExistingServer: !process.env.CI,
   },
