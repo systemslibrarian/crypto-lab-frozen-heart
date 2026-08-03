@@ -113,7 +113,8 @@ npm install
 npm run dev        # http://localhost:5173/crypto-lab-frozen-heart/
 npm test           # unit tests: KATs, round-trips, forgeries, the omission ladder
 npm run build      # type-check + production build to dist/
-npm run test:a11y  # axe-core WCAG 2.1 A/AA gate, both themes (needs a built dist/)
+npm run test:e2e   # browser gate: functional claims + axe-core WCAG 2.1 A/AA, both themes
+npm run test:a11y  # just the accessibility half of that gate
 ```
 
 ## Related Demos
@@ -147,10 +148,18 @@ assumption this lab pokes at:
   50 random targets; the strong transform *rejects* all 50; the omission ladder confirms
   exactly one rung (drop `R`) yields a verifying fixed-target forgery
   (`src/schnorr/forge.test.ts`).
+- **22 browser claims tests** (Playwright, `e2e/claims.spec.ts`) — the rendered page is
+  driven for real and its verdicts are asserted, not assumed: the forged proof is accepted
+  under `drop R` and rejected under every other preset (each with the reason it gives); the
+  forgery's own printed `s`, `c`, `R` are fed back through the repo's group code to
+  recover the target key and re-derive the challenge, proving the derivation shown is the
+  arithmetic performed; every omission-ladder severity chip is recomputed from the three
+  measurements printed beside it; and the stepped transform's verdict is checked against
+  the two hex sides the page itself rendered.
 - **Accessibility** — `@axe-core/playwright` scans the production build for zero WCAG 2.1
   A/AA violations in **both** themes; the GitHub Pages deploy is blocked on any failure.
 
-Run everything: `npm test && npm run build && npm run test:a11y`.
+Run everything: `npm test && npm run build && npm run test:e2e`.
 
 ## Performance
 

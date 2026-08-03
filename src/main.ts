@@ -814,7 +814,7 @@ function renderBreakResult(mount: HTMLElement): void {
       el('div', { class: 'algebra', role: 'group', 'aria-label': 'Forgery derivation' }, [
         el('div', { class: 'algebra-title' }, ['How the forgery was built — pure algebra, no secret key']),
         algebraLine('①', 's', 'chosen at random', hexScalar(r.proof.s)),
-        algebraLine('②', 'c = H(G, pk, m)', 'the hash never sees R, so c is fixed first', hexScalar(c)),
+        algebraLine('②', challengeFormula(fields), 'the hash never sees R, so c is fixed first', hexScalar(c)),
         algebraLine('③', 'R := [s]G − [c]pk', 'solved so the check is forced to pass', hexPoint(r.proof.R)),
         el('p', { class: 'algebra-foot' }, [
           'The verifier recomputes the same ',
@@ -837,6 +837,18 @@ function renderBreakResult(mount: HTMLElement): void {
   }
 
   mount.append(el('div', { style: 'margin-top:1rem' }, kids))
+}
+
+/**
+ * The challenge formula for a transcript policy, DERIVED from the policy in force.
+ * The derivation panel has to name the same hash the code actually computed: a fixed
+ * `c = H(G, pk, m)` string here contradicted the live formula directly above it whenever
+ * a second field (say G) had also been dropped, while the value printed beside it was the
+ * real, shorter hash.
+ */
+function challengeFormula(f: TranscriptFields): string {
+  const names = [f.g ? 'G' : '', f.pk ? 'pk' : '', f.R ? 'R' : '', f.message ? 'm' : ''].filter(Boolean)
+  return `c = H(${names.join(', ')})`
 }
 
 function algebraLine(n: string, expr: string, note: string, hex: string): HTMLElement {
