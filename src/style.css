@@ -241,6 +241,12 @@ body {
   }
   .cl-hero-why {
     flex-basis: auto;
+    /* `width: 100%` + `padding: 0 1.05rem` + a 1px border, with no box-sizing
+       reset anywhere in this stylesheet, makes the border box 35.6px WIDER than
+       the flex line it sits in. Measured at 380px: the document scrolled to
+       400px against a 380px viewport in every single state, both themes — a
+       WCAG 1.4.10 reflow failure on every page load. */
+    box-sizing: border-box;
     width: 100%;
   }
   .cl-hero-main {
@@ -275,7 +281,13 @@ body {
   font: inherit;
   cursor: pointer;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  /* --border-strong, not --border. A button filled with --panel-2 sits 1.11:1
+     against the --panel card behind it, so its border is the only thing that
+     delineates it, and --border measured 1.38:1 (dark) / 1.42:1 (light) there.
+     The token was already defined and documented for exactly this, but it was
+     applied to just two elements — .field-toggle and .text-input — while every
+     button, preset, ghost and mode toggle rolled its own. */
+  border: 1px solid var(--border-strong);
   background-color: var(--panel-2);
   color: var(--text);
   padding: 0.5rem 0.9rem;
@@ -292,7 +304,12 @@ body {
 #app button.primary {
   background-color: var(--accent);
   color: var(--accent-ink);
-  border-color: var(--accent);
+  /* Not `var(--accent)`: a border the same colour as the fill is not a boundary,
+     and the fill alone measured 2.75:1 against --panel in the dark theme (it
+     clears 3:1 only on --bg, where the hero CTA happens to sit — measure a
+     token against the DARKEST surface it lands on). --accent-text measures
+     6.41:1 on --panel dark and 8.00:1 on --panel light. */
+  border-color: var(--accent-text);
   font-weight: 600;
 }
 #app button.primary:hover:not(:disabled) {
@@ -301,7 +318,8 @@ body {
 #app button.danger {
   background-color: var(--alarm-fill);
   color: var(--alarm-ink);
-  border-color: var(--alarm-fill);
+  /* Fill alone measured 2.67:1 against --panel in the dark theme. */
+  border-color: var(--alarm-text);
   font-weight: 600;
 }
 .btn-row {
@@ -1034,7 +1052,14 @@ details[open] summary {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.preset {
+/* Scoped with #app deliberately. Every rule in this block used to be written as
+   a bare `.preset…` selector — (0,1,0) and (0,2,0) — and `#app button` above is
+   (1,0,1), so the ID won all five of them. The measured result was that the 3px
+   stripe rendered at 1px, every severity colour rendered as --border, and the
+   pressed preset was distinguishable from the unpressed ones only by a 2px
+   box-shadow ring measured at 1.56:1. None of the colour-coding this row exists
+   for reached the screen in either theme. */
+#app button.preset {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1043,16 +1068,19 @@ details[open] summary {
   background-color: var(--panel-2);
   border-left-width: 3px;
 }
-.preset.tone-alarm {
-  border-left-color: var(--alarm-fill);
+/* The *-text tokens, not the *-fill ones: a severity stripe is a graphic that
+   has to be read, and --alarm-fill measured 2.67:1 against --panel in the dark
+   theme where --alarm-text measures 6.4:1+. */
+#app button.preset.tone-alarm {
+  border-left-color: var(--alarm-text);
 }
-.preset.tone-warn {
-  border-left-color: var(--warn-fill);
+#app button.preset.tone-warn {
+  border-left-color: var(--warn-text);
 }
-.preset.tone-good {
-  border-left-color: var(--safe-fill);
+#app button.preset.tone-good {
+  border-left-color: var(--safe-text);
 }
-.preset.active {
+#app button.preset.active {
   border-color: var(--accent-text);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
 }
@@ -1073,7 +1101,11 @@ details[open] summary {
   display: block;
   margin-bottom: 0.3rem;
 }
+/* Same content-box trap as .cl-hero-why: `width: 100%` plus 0.7rem of padding
+   and a 1px border overflows its .card by 24.4px once the custom-transcript
+   disclosure is open. */
 .text-input {
+  box-sizing: border-box;
   width: 100%;
   padding: 0.5rem 0.7rem;
   border-radius: 8px;

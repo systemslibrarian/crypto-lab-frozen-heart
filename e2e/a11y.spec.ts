@@ -1,39 +1,56 @@
-import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
+import { test } from '@playwright/test'
+import { boot, driveAllStates, NARROW, reportCollected } from './gate'
 
-async function prepare(page: Page): Promise<void> {
-  await page.addStyleTag({ content: `*,*::before,*::after{animation:none!important;transition:none!important}` })
-  await page.evaluate(() => {
-    document.querySelectorAll('details').forEach((d) => ((d as HTMLDetailsElement).open = true))
-    document.querySelectorAll<HTMLElement>('[hidden],[role="tabpanel"]').forEach((el) => {
-      el.removeAttribute('hidden')
-      el.style.display = ''
-      el.classList.add('active', 'is-active', 'open')
-    })
+/**
+ * WCAG A/AA gate.
+ *
+ * Four configurations, {dark, light} x {1280, 380}, each driven through the
+ * whole lab rather than scanned once at the end: both branches of the
+ * interactive/non-interactive fork and all five of their steps, every
+ * transcript preset with both a forgery and an honest proof under it, the
+ * empty-hash extreme no preset reaches, both ladder demonstrations, the guided
+ * run that is the only route to the narration banner, and the disabled state of
+ * the stepper.
+ *
+ * Reduced motion is EMULATED, never injected. This lab gates its animation
+ * behind `@media (prefers-reduced-motion: no-preference)`, which is the correct
+ * pattern — and the only way to show that it holds is to set the preference and
+ * measure, rather than to blanket-kill `animation` from outside and prove
+ * nothing.
+ */
+
+test.describe('WCAG A/AA gate', () => {
+  test.beforeEach(({ page }) => {
+    page.setDefaultTimeout(20_000)
   })
-  for (const b of await page.locator('button').all()) {
-    const label = ((await b.textContent()) || '').toLowerCase()
-    if (/run|compute|sign|verify|encrypt|simulate|start|forge|commit|challenge|respond|next|step/.test(label))
-      await b.click().catch(() => {})
-  }
-  await page.waitForTimeout(400)
-}
-async function scan(page: Page): Promise<void> {
-  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()
-  expect(
-    violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5) })),
-  ).toEqual([])
-}
-test('no WCAG A/AA violations — dark theme', async ({ page }) => {
-  await page.goto('.')
-  await prepare(page)
-  await scan(page)
-})
-test('no WCAG A/AA violations — light theme', async ({ page }) => {
-  await page.goto('.')
-  await page.locator('#cl-theme-toggle').click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-  await prepare(page)
-  await scan(page)
+
+  test.afterAll(() => {
+    reportCollected()
+  })
+
+  test('dark theme, desktop width', async ({ page }) => {
+    test.slow()
+    await boot(page, 'dark')
+    await driveAllStates(page, 'dark @1280')
+  })
+
+  test('light theme, desktop width', async ({ page }) => {
+    test.slow()
+    await boot(page, 'light')
+    await driveAllStates(page, 'light @1280')
+  })
+
+  test('dark theme, 380px reflow width', async ({ page }) => {
+    test.slow()
+    await page.setViewportSize(NARROW)
+    await boot(page, 'dark')
+    await driveAllStates(page, 'dark @380')
+  })
+
+  test('light theme, 380px reflow width', async ({ page }) => {
+    test.slow()
+    await page.setViewportSize(NARROW)
+    await boot(page, 'light')
+    await driveAllStates(page, 'light @380')
+  })
 })
