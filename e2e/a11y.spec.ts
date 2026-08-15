@@ -1,5 +1,5 @@
 import { test } from '@playwright/test'
-import { boot, driveAllStates, NARROW, reportCollected } from './gate'
+import { boot, driveAllStates, expectBaselineNotStale, NARROW, reportCollected } from './gate'
 
 /**
  * WCAG A/AA gate.
@@ -26,6 +26,18 @@ test.describe('WCAG A/AA gate', () => {
 
   test.afterAll(() => {
     reportCollected()
+    // The baseline's third rule: a listed finding that no longer appears fails
+    // until its entry is deleted, so a fixed defect cannot linger as a
+    // permanent exemption. `expectBaselineNotStale` was exported and never
+    // called, so that rule had never run and the file could only grow.
+    //
+    // It belongs in `afterAll` rather than at the end of each test.
+    // `nonTextSeen` is module state and this config leaves `fullyParallel`
+    // unset, so all four configurations share one worker and accumulate into
+    // one set; the hook runs once, after the last of them, and therefore sees
+    // the union of all four drives. Per test it would instead assert the whole
+    // baseline against a partial drive.
+    expectBaselineNotStale()
   })
 
   test('dark theme, desktop width', async ({ page }) => {
