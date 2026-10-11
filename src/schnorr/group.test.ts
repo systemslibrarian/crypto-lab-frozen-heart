@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { sha512 } from '@noble/hashes/sha512'
-import { G, IDENTITY, mul, decodePoint, encodePoint, bytesToHex, hexToBytes, L, sc } from './group'
+import { sha512 } from '@noble/hashes/sha2.js'
+import { G, IDENTITY, mul, decodePoint, encodePoint, bytesToHex, hexToBytes, L, sc, hashToScalar } from './group'
 
 /**
  * KATs — proving the group layer is the real ristretto255, not a stand-in.
@@ -47,6 +47,18 @@ describe('ristretto255 group — RFC 9496 known-answer tests', () => {
     expect(() => decodePoint(hexToBytes('ff'.repeat(32)))).toThrow()
   })
 
+  it('decodes the canonical identity and rejects malformed byte lengths', () => {
+    expect(decodePoint(new Uint8Array(32)).equals(IDENTITY)).toBe(true)
+    for (const length of [0, 31, 33]) {
+      expect(() => decodePoint(new Uint8Array(length))).toThrow()
+    }
+  })
+
+  it('preserves scalar reduction and canonical encoding across a full group order', () => {
+    expect(bytesToHex(encodePoint(mul(L + 5n, G)))).toBe(RFC9496_MULTIPLES[5])
+    expect(bytesToHex(encodePoint(mul(L, G)))).toBe(RFC9496_MULTIPLES[0])
+  })
+
   it('the order L is the ristretto255 prime order', () => {
     expect(L).toBe(2n ** 252n + 27742317777372353535851937790883648493n)
   })
@@ -65,5 +77,14 @@ describe('SHA-512 — NIST known-answer tests', () => {
       'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a' +
         '2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f',
     )
+  })
+
+  it('reduces the published SHA-512("abc") digest as little-endian bytes, without extra hashing', () => {
+    // Independently computed from the NIST digest above with Python hashlib
+    // and integer arithmetic, rather than the lab's renamed byte utilities.
+    expect(hashToScalar(enc.encode('abc'))).toBe(
+      5368046747102448923799975629744413184667304073173566595224764730802895216081n,
+    )
+    expect(hashToScalar(enc.encode('abc!'))).not.toBe(hashToScalar(enc.encode('abc')))
   })
 })
