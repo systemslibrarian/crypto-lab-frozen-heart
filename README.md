@@ -164,6 +164,24 @@ assumption this lab pokes at:
 
 Run everything: `npm test && npm run build && npm run test:e2e`.
 
+### Public deployment verification
+
+The Pages workflow now distinguishes its local build gate, deployment, and actual
+public verification. After successful deployment it checks every published file
+against hashes captured from that build, with the checked-out commit and exact
+lockfile recorded separately. It then runs the original full 24-test suite on the
+deployment URL, without a local server, changed assertions or longer time budgets.
+The current suite covers dark desktop and 380px layouts; it does not test light mode.
+Missing, failed, skipped, flaky or incomplete reports fail the public verification
+job. A successful Pages job alone does not establish successful public verification.
+
+Run the gate's fixture controls with
+`node --test tools/verify-public-deployment.test.mjs`. For an independent live run,
+set `PUBLIC_DEPLOYMENT_URL=https://systemslibrarian.github.io/crypto-lab-frozen-heart/`
+and use `npx playwright test --config playwright.public.config.ts`. This produces
+`public-browser-results.json`; the workflow additionally compares discovered test
+membership and immutable build evidence before reporting success.
+
 ## Performance
 
 All operations are single ristretto255 scalar multiplications and one SHA-512 — sub-

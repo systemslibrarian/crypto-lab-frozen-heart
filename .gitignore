@@ -8,3 +8,8 @@ test-results
 .vite
 .shots
 chat.md
+public-*-evidence.json
+public-*-results.json
+public-test-membership.json
+public-browser-artifacts
+public-verification-error.json
