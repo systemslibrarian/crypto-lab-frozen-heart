@@ -40,6 +40,11 @@ test('accepts exact source and lock identity; rejects stale, empty and opaque bu
     { ...manifest(), files: [{ ...manifest().files[0], sha256: null }] }]) {
     assert.throws(() => validateManifest(bad, identity))
   }
+  for (const badIdentity of [{ ...identity, sourceSha: undefined },
+    { ...identity, sourceSha: 'short' }, { ...identity, lockSha256: undefined },
+    { ...identity, lockSha256: 'short' }]) {
+    assert.throws(() => validateManifest({ ...manifest(), ...badIdentity }, badIdentity))
+  }
 })
 
 test('checks real downloaded bytes and rejects changed, missing or redirected pages', async () => {
@@ -65,6 +70,18 @@ test('unreadable network or timeout cannot establish successful deployment', asy
   }), /timeout/)
 })
 
+test('a successful first download cannot hide an unreadable second file', async () => {
+  const twoFiles = manifest()
+  twoFiles.files.push({ ...twoFiles.files[0], path: 'assets/application.js' })
+  let requests = 0
+  await assert.rejects(verifyFiles(twoFiles, identity, url, async (requested) => {
+    requests++
+    if (requests === 1) return fixtureFetch(requested)
+    return { status: 404, url: requested, arrayBuffer: async () => bytes }
+  }), /Unreadable deployed file/)
+  assert.equal(requests, 2)
+})
+
 test('requires successful execution and the complete original browser membership', () => {
   assert.equal(verifyReport(report(), report(), 0).passed, 24)
   for (const exit of [1, null, undefined, NaN]) assert.throws(() => verifyReport(report(), report(), exit))
@@ -75,6 +92,8 @@ test('requires successful execution and the complete original browser membership
   assert.throws(() => verifyReport(partial, partial, 0), /original full-suite/)
   const changed = report(); changed.suites[0].specs[0].title = 'Different test'
   assert.throws(() => verifyReport(report(), changed, 0), /membership/)
+  const duplicate = report(); duplicate.suites[0].specs[1].title = duplicate.suites[0].specs[0].title
+  assert.throws(() => verifyReport(report(), duplicate, 0), /duplicate/)
 })
 
 test('zero process exit cannot hide failed, skipped, unfinished, flaky or unreadable tests', () => {
@@ -101,7 +120,9 @@ test('actual capture pins Git bytes, rejects a changed checkout/lock, and instal
     writeFileSync(resolve(directory, 'package-lock.json'), '{"lockfileVersion":3}\n')
     writeFileSync(resolve(directory, 'package.json'), JSON.stringify({ name: 'synthetic-control',
       scripts: { postinstall: 'touch lifecycle-ran', prepare: 'touch lifecycle-ran' } }))
-    git('add', 'package.json', 'package-lock.json')
+    mkdirSync(resolve(directory, 'src'))
+    writeFileSync(resolve(directory, 'src/main.ts'), 'export const original = true\n')
+    git('add', 'package.json', 'package-lock.json', 'src/main.ts')
     git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', 'Fixture')
     const sourceSha = git('rev-parse', 'HEAD')
     mkdirSync(resolve(directory, 'dist'))
@@ -116,6 +137,15 @@ test('actual capture pins Git bytes, rejects a changed checkout/lock, and instal
     assert.equal(evidence.lockSha256, createHash('sha256').update(git('show', `${sourceSha}:package-lock.json`) + '\n').digest('hex'))
     assert.equal(existsSync(resolve(directory, 'node_modules')), false)
     assert.equal(existsSync(resolve(directory, 'lifecycle-ran')), false)
+    // Same HEAD and lock, different source bytes must not be labelled exact.
+    writeFileSync(resolve(directory, 'src/main.ts'), 'export const original = false\n')
+    assert.notEqual(capture().status, 0)
+    git('add', 'src/main.ts')
+    assert.notEqual(capture().status, 0)
+    writeFileSync(resolve(directory, 'src/main.ts'), 'export const original = true\n')
+    assert.notEqual(capture().status, 0) // clean worktree bytes, dirty index
+    git('add', 'src/main.ts')
+    assert.equal(capture().status, 0)
     assert.notEqual(capture({ GITHUB_SHA: 'f'.repeat(40) }).status, 0)
     writeFileSync(resolve(directory, 'package-lock.json'), '{"lockfileVersion":2}\n')
     assert.notEqual(capture().status, 0)

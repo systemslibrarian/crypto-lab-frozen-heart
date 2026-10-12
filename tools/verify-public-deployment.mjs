@@ -21,6 +21,10 @@ function sourceIdentity() {
   requireEvidence(/^[a-f0-9]{40}$/.test(sha) && sha === process.env.GITHUB_SHA,
     'Checkout does not match the workflow source SHA')
   requireEvidence(process.env.GITHUB_REPOSITORY === repository, 'Unexpected repository')
+  // HEAD alone does not establish the bytes being built/tested. This checks
+  // both staged and unstaged tracked changes; unreadable Git state fails too.
+  execFileSync('git', ['diff', '--quiet', '--no-ext-diff', 'HEAD', '--'])
+  execFileSync('git', ['diff', '--quiet', '--cached', '--no-ext-diff', 'HEAD', '--'])
   const capturedLock = execFileSync('git', ['show', `${sha}:package-lock.json`])
   requireEvidence(sha256(readFileSync('package-lock.json')) === sha256(capturedLock),
     'Working lock differs from the immutable source lock')
@@ -40,6 +44,8 @@ function artifactFiles(directory, relative = '') {
 }
 
 export function validateManifest(manifest, identity) {
+  requireEvidence(identity?.repository === repository && /^[a-f0-9]{40}$/.test(identity.sourceSha)
+    && /^[a-f0-9]{64}$/.test(identity.lockSha256), 'Missing or malformed source identity')
   requireEvidence(manifest?.version === 1 && manifest.repository === identity.repository
     && manifest.sourceSha === identity.sourceSha && manifest.lockSha256 === identity.lockSha256,
   'Build evidence does not match the checked-out source and lock')
