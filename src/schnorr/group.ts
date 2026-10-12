@@ -14,10 +14,12 @@
  * is clean modulo the single group order L. That removes cofactor subtleties that would
  * distract from the one idea the lab exists to teach.
  */
-import { RistrettoPoint, ed25519 } from '@noble/curves/ed25519'
-import { sha512 } from '@noble/hashes/sha512'
-import { bytesToNumberLE, numberToBytesLE, bytesToHex, hexToBytes, concatBytes } from '@noble/curves/abstract/utils'
-import { mod, invert } from '@noble/curves/abstract/modular'
+import { ristretto255 } from '@noble/curves/ed25519.js'
+import { sha512 } from '@noble/hashes/sha2.js'
+import { bytesToNumberLE, numberToBytesLE, bytesToHex, hexToBytes, concatBytes } from '@noble/curves/utils.js'
+import { mod, invert } from '@noble/curves/abstract/modular.js'
+
+const RistrettoPoint = ristretto255.Point
 
 /** A point in the group. Immutable wrapper type alias over the library point. */
 export type Point = InstanceType<typeof RistrettoPoint>
@@ -25,7 +27,7 @@ export type Point = InstanceType<typeof RistrettoPoint>
 export type Scalar = bigint
 
 /** The prime order L of ristretto255 = 2^252 + 27742317777372353535851937790883648493. */
-export const L: bigint = ed25519.CURVE.n
+export const L: bigint = RistrettoPoint.Fn.ORDER
 
 /** The standard generator B (base point) of the group. */
 export const G: Point = RistrettoPoint.BASE
@@ -86,12 +88,12 @@ export function eq(p: Point, q: Point): boolean {
 
 /** Canonical 32-byte encoding of a point (RFC 9496). */
 export function encodePoint(p: Point): Uint8Array {
-  return p.toRawBytes()
+  return p.toBytes()
 }
 
 /** Decode a canonical 32-byte ristretto encoding. Throws on a non-canonical / invalid encoding. */
 export function decodePoint(bytes: Uint8Array): Point {
-  return RistrettoPoint.fromHex(bytes)
+  return RistrettoPoint.fromBytes(bytes)
 }
 
 /** 32-byte little-endian encoding of a scalar (already reduced). */

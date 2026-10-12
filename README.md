@@ -136,11 +136,14 @@ assumption this lab pokes at:
 
 ## Build & Verify
 
-- **49 unit tests** (Vitest), all passing, including **18 known-answer tests**:
+- **52 unit tests** (Vitest), all passing, including **18 known-answer tests**:
   - **16 RFC 9496 ristretto255 vectors** — the canonical encodings of `[0]B`…`[15]B`,
     verifying the group layer is the real ristretto255 bit-for-bit
     (`src/schnorr/group.test.ts`).
   - **2 NIST SHA-512 vectors** — `SHA-512("")` and `SHA-512("abc")`.
+- **Group migration controls** retain identity decoding, reject malformed byte lengths,
+  preserve scalar reduction across the group order, and pin the little-endian
+  SHA-512-to-scalar transcript pipeline against an independently derived value.
 - **Correctness** — honest proofs verify (100 randomized round-trips); the verifier rejects
   every tampered response, commitment, message, and wrong key, and rejects out-of-range
   responses fail-closed (`src/schnorr/schnorr.test.ts`).
