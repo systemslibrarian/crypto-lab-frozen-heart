@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      public-evidence: ${{ steps.public-evidence.outputs.evidence }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,6 +28,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Public verification positive and negative controls
+        run: node --test tools/verify-public-deployment.test.mjs
       - name: Unit tests (crypto KATs, forgery, ladder)
         run: npm test
       - name: Build
@@ -34,6 +38,9 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Browser gate (functional claims + axe-core WCAG A/AA, both themes)
         run: npm run test:e2e
+      - name: Capture exact source, lock and deployment file hashes
+        id: public-evidence
+        run: node tools/verify-public-deployment.mjs capture
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
@@ -42,12 +49,57 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    outputs:
+      page-url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  verify-public:
+    if: github.event_name != 'pull_request'
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PUBLIC_DEPLOYMENT_URL: ${{ needs.deploy.outputs.page-url }}
+      EXPECTED_DEPLOYMENT_EVIDENCE: ${{ needs.build.outputs.public-evidence }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Verify every published file against the successful build
+        run: node tools/verify-public-deployment.mjs files
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Discover the full original browser membership
+        run: npx playwright test --config playwright.public.config.ts --list --reporter json > public-test-membership.json
+      - name: Run and verify the complete suite on the actual deployment
+        shell: bash
+        run: |
+          set +e
+          npx playwright test --config playwright.public.config.ts
+          status=$?
+          set -e
+          node tools/verify-public-deployment.mjs report public-test-membership.json public-browser-results.json "$status"
+      - name: Retain public verification evidence, including incomplete runs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-verification-${{ github.sha }}
+          path: |
+            public-*.json
+            public-browser-artifacts
+          if-no-files-found: error
 
   # Dependabot only. Runs after the gate above, so a bump can only merge itself
   # if this lab's own tests, build and axe/e2e run went green on the PR.
