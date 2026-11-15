@@ -4,7 +4,8 @@ import { boot, driveAllStates, expectBaselineNotStale, NARROW, reportCollected }
 /**
  * WCAG A/AA gate.
  *
- * Four configurations, {dark, light} x {1280, 380}, each driven through the
+ * Two configurations, dark x {1280, 380} -- the lab's own colour scheme, and
+ * the only one this gate tests -- each driven through the
  * whole lab rather than scanned once at the end: both branches of the
  * interactive/non-interactive fork and all five of their steps, every
  * transcript preset with both a forgery and an honest proof under it, the
@@ -33,9 +34,9 @@ test.describe('WCAG A/AA gate', () => {
     //
     // It belongs in `afterAll` rather than at the end of each test.
     // `nonTextSeen` is module state and this config leaves `fullyParallel`
-    // unset, so all four configurations share one worker and accumulate into
+    // unset, so both configurations share one worker and accumulate into
     // one set; the hook runs once, after the last of them, and therefore sees
-    // the union of all four drives. Per test it would instead assert the whole
+    // the union of both drives. Per test it would instead assert the whole
     // baseline against a partial drive.
     expectBaselineNotStale()
   })

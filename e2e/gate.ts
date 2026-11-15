@@ -40,7 +40,7 @@ export const NARROW = { width: 380, height: 800 }
  * Soft-gate collection mode.
  *
  * With `A11Y_COLLECT=1` an assertion records its failure and returns instead of
- * throwing, so one run reports EVERY defect across all four configurations
+ * throwing, so one run reports EVERY defect across both configurations
  * rather than stopping at the first. `reportCollected()` then fails the test —
  * a collecting run can never be mistaken for a passing gate.
  */

@@ -113,7 +113,8 @@ npm install
 npm run dev        # http://localhost:5173/crypto-lab-frozen-heart/
 npm test           # unit tests: KATs, round-trips, forgeries, the omission ladder
 npm run build      # type-check + production build to dist/
-npm run test:e2e   # browser gate: functional claims + axe-core WCAG 2.1 A/AA, both themes
+npm run test:e2e   # browser gate: functional claims + axe-core WCAG 2.1 A/AA, dark theme at
+                   # 1280px and 380px (light mode is not tested)
 npm run test:a11y  # just the accessibility half of that gate
 ```
 

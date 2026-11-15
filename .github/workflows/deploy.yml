@@ -36,7 +36,7 @@ jobs:
         run: npm run build
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
-      - name: Browser gate (functional claims + axe-core WCAG A/AA, both themes)
+      - name: Browser gate (functional claims + axe-core WCAG A/AA, dark theme at two widths)
         run: npm run test:e2e
       - name: Capture exact source, lock and deployment file hashes
         id: public-evidence
