@@ -1,3 +1,7 @@
+import nobleReadme from '../../node_modules/@noble/curves/README.md?raw';
+import pkg from '../../package.json';
+import readmeSource from '../../README.md?raw';
+import groupSource from './group.ts?raw';
 import { describe, it, expect } from 'vitest'
 import { sha512 } from '@noble/hashes/sha2.js'
 import { G, IDENTITY, mul, decodePoint, encodePoint, bytesToHex, hexToBytes, L, sc, hashToScalar } from './group'
@@ -88,3 +92,37 @@ describe('SHA-512 — NIST known-answer tests', () => {
     expect(hashToScalar(enc.encode('abc!'))).not.toBe(hashToScalar(enc.encode('abc')))
   })
 })
+
+// The audit claim attached to the library this file wraps.
+//
+// The README and group.ts both called @noble/curves "audited" with no version:
+// "the audited [`@noble/curves`] library" and "a widely-audited implementation".
+// Its README records the latest independent audit as "at version 2.3.0, in Aug
+// 2026, by [Trail of Bits]", scope "everything"; the pin here is ^2.4.0, past
+// it. Read from the installed package, so an upgrade that changes the record
+// fails here rather than passing quietly.
+describe('what "audited" covers for the pinned @noble/curves', () => {
+  it('pins a version later than the latest audit the library records', () => {
+    expect(pkg.dependencies['@noble/curves']).toBe('^2.4.0');
+    expect(nobleReadme).toContain('The library has been audited');
+    expect(nobleReadme).toMatch(/at version 2\.3\.0, in Aug 2026, by \[Trail of Bits\]/);
+    expect(nobleReadme).not.toMatch(/at version 2\.4\.\d+, in [A-Z]/);
+  });
+
+  it('gives that version wherever the library is described', () => {
+    // Both wrap at different column widths, so compare on normalised whitespace.
+    const flat = (t: string) => t.replace(/\n\s*\*\s?/g, ' ').replace(/\s+/g, ' ');
+    for (const [name, text] of [
+      ['README.md', flat(readmeSource)],
+      ['src/schnorr/group.ts', flat(groupSource)],
+    ] as const) {
+      expect(text, `${name} drops the bare "audited" claim`).not.toMatch(
+        /audited \[`@noble\/curves`\]|widely-audited/,
+      );
+      expect(text, `${name} names the audited version`).toContain(
+        'at version 2.3.0, in Aug 2026, by [Trail of Bits]',
+      );
+      expect(text, `${name} names the pin`).toMatch(/\^2\.4\.0/);
+    }
+  });
+});

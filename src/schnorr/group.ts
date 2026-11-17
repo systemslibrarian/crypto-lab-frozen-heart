@@ -3,11 +3,16 @@
  *
  * WHY A LIBRARY HERE, HAND-ROLLED ABOVE:
  * Elliptic-curve point arithmetic is the *primitive underneath* this lab, not its
- * subject. We use @noble/curves — a widely-audited implementation — for the field and
+ * subject. We use @noble/curves for the field and
  * point operations, exactly as §0.1 of the Crypto Lab standard allows ("a named,
  * justified library for the actual operations"). Everything that teaches — the Schnorr
  * sigma protocol, the Fiat-Shamir challenge, the prover, the verifier, and the forgery —
  * is hand-rolled in the sibling files so the internals are inspectable.
+ *
+ * ON "AUDITED": @noble/curves records its latest independent audit "at version
+ * 2.3.0, in Aug 2026, by [Trail of Bits]", scope "everything". The pin here is
+ * ^2.4.0, one release past that, so the shipped version is not itself covered.
+ * What is checked here regardless is RFC 9496's own ristretto255 vectors.
  *
  * ristretto255 (RFC 9496) is chosen over a raw curve because it is a *prime-order* group:
  * every non-identity element is a generator, there is no cofactor, and scalar arithmetic

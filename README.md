@@ -24,8 +24,10 @@ sound **only if that hash covers the whole transcript** — every public input a
 the prover's commitment `R`. Leave `R` out and the prover, not the hash, effectively
 chooses the challenge, which enables a genuine algebraic forgery.
 
-- **The primitives are real.** Point arithmetic and canonical encoding come from the
-  audited [`@noble/curves`](https://github.com/paulmillr/noble-curves) library; the Schnorr
+- **The primitives are real.** Point arithmetic and canonical encoding come from
+  [`@noble/curves`](https://github.com/paulmillr/noble-curves) — audited "at version 2.3.0,
+  in Aug 2026, by [Trail of Bits]" with scope "everything", per the library's own README;
+  this lab pins `^2.4.0`, one release past that audit. The Schnorr
   prover, verifier, Fiat-Shamir challenge, and the forgeries are hand-rolled here so the
   internals are inspectable (`src/schnorr/`).
 - **The forgery is real.** It is a byte-exact algebraic construction — pick the response
