@@ -139,7 +139,7 @@ assumption this lab pokes at:
 
 ## Build & Verify
 
-- **52 unit tests** (Vitest), all passing, including **18 known-answer tests**:
+- The Vitest suite includes **18 known-answer tests**:
   - **16 RFC 9496 ristretto255 vectors** — the canonical encodings of `[0]B`…`[15]B`,
     verifying the group layer is the real ristretto255 bit-for-bit
     (`src/schnorr/group.test.ts`).
@@ -163,7 +163,7 @@ assumption this lab pokes at:
   measurements printed beside it; and the stepped transform's verdict is checked against
   the two hex sides the page itself rendered.
 - **Accessibility** — `@axe-core/playwright` scans the production build for zero WCAG 2.1
-  A/AA violations in **both** themes; the GitHub Pages deploy is blocked on any failure.
+  A/AA violations in the dark theme at desktop and 380px widths; the GitHub Pages deploy is blocked on any failure.
 
 Run everything: `npm test && npm run build && npm run test:e2e`.
 
